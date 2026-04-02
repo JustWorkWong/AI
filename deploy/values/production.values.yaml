@@ -1,0 +1,11 @@
+gateway-yarp:
+  replicaCount: 2
+
+ops-bff:
+  replicaCount: 2
+
+wms-domain-service:
+  replicaCount: 2
+
+agent-runtime:
+  replicaCount: 2

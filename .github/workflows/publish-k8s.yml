@@ -1,0 +1,28 @@
+name: publish-k8s
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.201"
+
+      - name: Install Aspire CLI
+        run: curl -sSL https://aspire.dev/install.sh | bash
+
+      - name: Add Aspire to PATH
+        run: echo "$HOME/.aspire/bin" >> $GITHUB_PATH
+
+      - name: Generate Helm artifacts
+        run: chmod +x ./build/publish-k8s.sh && ./build/publish-k8s.sh ./artifacts/k8s Production
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k8s-helm-chart
+          path: ./artifacts/k8s

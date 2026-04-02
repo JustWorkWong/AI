@@ -3,6 +3,9 @@ bin/
 obj/
 artifacts/
 dist/
+aspire-output/
+aspire.config.json
+.aspire/
 
 # Node
 node_modules/

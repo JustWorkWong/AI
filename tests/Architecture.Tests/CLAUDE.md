@@ -3,6 +3,7 @@
 ## 文件
 - `Architecture.Tests.csproj`: 架构约束测试项目。
 - `AppHostProjectTests.cs`: 校验 Aspire AppHost 与发布骨架没有退化。
+- `RepositoryConventionsTests.cs`: 校验发布脚本与仓库约束文件存在。
 
 ## 原则
 - 这里测试结构，不测试业务。

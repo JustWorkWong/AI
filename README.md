@@ -1,30 +1,72 @@
 # Wms AI Platform
 
-WMS AI 面试项目骨架，当前聚焦两个流程：
+WMS AI 面试项目，当前聚焦两条生产型流程：
 
 - `退货质检与处置`
 - `SOP 辅助执行`
 
-## 架构原则
+## 架构
 
-- `Wms.DomainService` 是业务真相源。
-- `Agent.Runtime` 负责 MAF workflow、checkpoint、tool 观测与模型路由。
-- `Ops.Bff` 面向 Vue 页面聚合，不承载领域规则。
-- `Wms.AppHost` 负责 Aspire 本地编排与 Kubernetes 发布产物生成。
+- `Wms.DomainService` 持有业务真相。
+- `Agent.Runtime` 持有 workflow、checkpoint、tool 观测、AG-UI 事件。
+- `Ops.Bff` 面向 Vue 页面做 typed 聚合与 SSE 桥接。
+- `Wms.AppHost` 用 Aspire 做本地编排和 Kubernetes Helm 产物生成。
 
-## 当前状态
-
-- `Task 1` 仓库骨架进行中。
-- 设计与实现计划位于 `docs/superpowers/`。
-
-## 启动前提
+## 前提
 
 - `.NET SDK 10.0.201+`
 - Docker Desktop
 - Node.js 22+
+- Aspire CLI
 
-## 近期执行顺序
+Windows 安装 Aspire CLI:
 
-1. 完成 solution 与项目骨架。
-2. 落 `Aspire AppHost` 与 `ServiceDefaults`。
-3. 接 `Auth.Service` 和 `Keycloak` 基线。
+```powershell
+irm https://aspire.dev/install.ps1 | iex
+```
+
+## 本地开发
+
+启动 Aspire 本地编排:
+
+```powershell
+dotnet run --project .\src\Wms.AppHost\Wms.AppHost.csproj
+```
+
+启动 Vue 前端:
+
+```powershell
+Set-Location .\web\wms-web
+npm install
+npm run dev
+```
+
+## 验证
+
+```powershell
+dotnet test .\WmsAiPlatform.sln
+Set-Location .\web\wms-web
+npm run build
+```
+
+## 用 Aspire 生成 Kubernetes 产物
+
+Windows:
+
+```powershell
+.\build\publish-k8s.ps1
+helm upgrade --install wms-ai-platform .\artifacts\k8s -f .\deploy\values\production.values.yaml
+```
+
+Linux / CI:
+
+```bash
+./build/publish-k8s.sh ./artifacts/k8s Production
+```
+
+脚本底层调用 `aspire publish --apphost ... --output-path ... --environment Production`，生成 Helm chart，再由你自己的 Helm / GitOps 流程部署。
+
+## 文档
+
+- 设计文档: `docs/superpowers/specs/`
+- 实现计划: `docs/superpowers/plans/`
