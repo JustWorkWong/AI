@@ -1,41 +1,58 @@
+using Microsoft.EntityFrameworkCore;
+using Shared.Contracts.Approvals;
+using Wms.DomainService.Auth;
+using Wms.DomainService.Persistence;
+using Wms.ServiceDefaults;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.AddWmsServiceDefaults();
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<WmsDbContext>(options =>
+{
+    var connectionString =
+        builder.Configuration.GetConnectionString("wmsdb")
+        ?? builder.Configuration["ConnectionStrings:wmsdb"]
+        ?? "Host=localhost;Database=wmsdb;Username=postgres;Password=postgres";
+
+    options.UseNpgsql(connectionString);
+});
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+app.MapGet("/healthz", () => Results.Ok("ok"));
 
-var summaries = new[]
+app.MapPost("/internal/auth/sync", async (
+    SyncUserRequest request,
+    WmsDbContext db,
+    CancellationToken cancellationToken) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var user = await db.Users.SingleOrDefaultAsync(
+        x => x.ExternalSubject == request.ExternalSubject,
+        cancellationToken);
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    if (user is null)
+    {
+        user = new User(Guid.NewGuid(), request.ExternalSubject, request.UserName);
+        db.Users.Add(user);
+    }
+
+    user.UpdateProfile(request.UserName, request.DisplayName);
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.Accepted();
+});
+
+app.MapWmsDefaultEndpoints();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
