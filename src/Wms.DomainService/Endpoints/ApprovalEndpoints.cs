@@ -40,6 +40,16 @@ public static class ApprovalEndpoints
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
+            if (!string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(request.Action, "Reject", StringComparison.OrdinalIgnoreCase))
+            {
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Unsupported approval action",
+                    "Unsupported approval action.");
+            }
+
             var task = await db.ApprovalTasks.SingleOrDefaultAsync(
                 x => x.Id == approvalTaskId,
                 cancellationToken);
@@ -53,6 +63,15 @@ public static class ApprovalEndpoints
                     $"Approval task '{approvalTaskId}' does not exist.");
             }
 
+            if (!task.IsPending)
+            {
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status409Conflict,
+                    "Approval task conflict",
+                    $"Approval task '{approvalTaskId}' is already {task.Status}.");
+            }
+
             db.ApprovalActions.Add(new ApprovalAction(
                 Guid.NewGuid(),
                 approvalTaskId,
@@ -63,17 +82,9 @@ public static class ApprovalEndpoints
             {
                 task.MarkApproved();
             }
-            else if (string.Equals(request.Action, "Reject", StringComparison.OrdinalIgnoreCase))
-            {
-                task.MarkRejected();
-            }
             else
             {
-                return Program.CreateProblemResult(
-                    httpContext,
-                    StatusCodes.Status422UnprocessableEntity,
-                    "Unsupported approval action",
-                    "Unsupported approval action.");
+                task.MarkRejected();
             }
 
             await db.SaveChangesAsync(cancellationToken);

@@ -25,6 +25,8 @@ public sealed class ApprovalTask
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
+    public bool IsPending => string.Equals(Status, "Pending", StringComparison.Ordinal);
+
     public void MarkApproved()
     {
         Status = "Approved";
