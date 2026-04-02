@@ -1,22 +1,26 @@
 <Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageVersion Include="Aspire.Hosting.Kubernetes" Version="9.*" />
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="9.*" />
-    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="9.*" />
-    <PackageVersion Include="Aspire.Hosting.Redis" Version="9.*" />
-    <PackageVersion Include="FluentAssertions" Version="7.*" />
-    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.*" />
-    <PackageVersion Include="Minio" Version="6.*" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0-*" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0-*" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0-*" />
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="9.*" />
-    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="9.*" />
-    <PackageVersion Include="Microsoft.ReverseProxy" Version="2.*" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-*" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
-    <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.*" />
-    <PackageVersion Include="Testcontainers" Version="4.*" />
-    <PackageVersion Include="xunit" Version="2.*" />
+    <PackageVersion Include="Aspire.Hosting.Kubernetes" Version="13.1.1-preview.1.26105.8" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.1.0" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.1.0" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.1.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 </Project>

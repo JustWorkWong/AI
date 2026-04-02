@@ -1,5 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,4 +6,18 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Kubernetes" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Auth.Service\Auth.Service.csproj" />
+    <ProjectReference Include="..\Gateway.Yarp\Gateway.Yarp.csproj" />
+    <ProjectReference Include="..\Ops.Bff\Ops.Bff.csproj" />
+    <ProjectReference Include="..\Wms.DomainService\Wms.DomainService.csproj" />
+    <ProjectReference Include="..\Agent.Runtime\Agent.Runtime.csproj" />
+  </ItemGroup>
 </Project>
