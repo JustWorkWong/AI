@@ -6,11 +6,11 @@ public sealed class WorkflowCheckpoint
 
     public Guid WorkflowInstanceId { get; init; }
 
-    public int Superstep { get; init; }
+    public int Superstep { get; set; }
 
-    public string Reason { get; init; } = string.Empty;
+    public string CheckpointType { get; set; } = string.Empty;
 
-    public string StateJson { get; init; } = "{}";
+    public string StateJson { get; set; } = "{}";
 
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }

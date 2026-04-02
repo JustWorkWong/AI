@@ -1,10 +1,13 @@
 using Agent.Runtime.Persistence;
+using System.Text;
 
 namespace Agent.Runtime.Observability;
 
 public sealed class ConversationCompactor
 {
-    public ConversationSummary Compact(Guid workflowInstanceId, IReadOnlyList<AgentMessage> messages, int keepRecentCount = 4)
+    private const int RecentWindowSize = 8;
+
+    public ConversationSummary Compact(Guid workflowInstanceId, IReadOnlyList<AgentMessage> messages)
     {
         if (messages.Count == 0)
         {
@@ -16,15 +19,52 @@ public sealed class ConversationCompactor
             };
         }
 
-        var recentMessages = messages
-            .Skip(Math.Max(0, messages.Count - keepRecentCount))
-            .Select(x => $"{x.Role}:{x.Content}");
+        var ordered = messages
+            .OrderBy(x => x.SequenceNumber)
+            .ThenBy(x => x.CreatedAtUtc)
+            .ToList();
+
+        var recent = ordered.TakeLast(Math.Min(RecentWindowSize, ordered.Count)).ToList();
+        var archived = ordered.Take(ordered.Count - recent.Count).ToList();
+        var builder = new StringBuilder();
+
+        if (archived.Count > 0)
+        {
+            builder.AppendLine("历史摘要:");
+
+            foreach (var message in archived)
+            {
+                builder.Append('[')
+                    .Append(message.Role)
+                    .Append("] ")
+                    .AppendLine(Trim(message.Content, 120));
+            }
+        }
+
+        builder.AppendLine("最近上下文:");
+
+        foreach (var message in recent)
+        {
+            builder.Append('[')
+                .Append(message.Role)
+                .Append("] ")
+                .AppendLine(Trim(message.Content, 240));
+        }
 
         return new ConversationSummary
         {
             WorkflowInstanceId = workflowInstanceId,
             MessageCount = messages.Count,
-            SummaryText = string.Join(Environment.NewLine, recentMessages)
+            StartSequenceNumber = ordered[0].SequenceNumber,
+            EndSequenceNumber = ordered[^1].SequenceNumber,
+            SummaryText = builder.ToString().TrimEnd()
         };
+    }
+
+    private static string Trim(string content, int maxLength)
+    {
+        return content.Length <= maxLength
+            ? content
+            : string.Concat(content.AsSpan(0, maxLength), "...");
     }
 }

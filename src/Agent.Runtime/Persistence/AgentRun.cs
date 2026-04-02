@@ -6,11 +6,13 @@ public sealed class AgentRun
 
     public Guid WorkflowInstanceId { get; init; }
 
-    public string AgentName { get; init; } = string.Empty;
+    public string AgentName { get; set; } = string.Empty;
 
     public string Status { get; set; } = AgentRunStatus.Created;
 
     public string ModelProfileCode { get; set; } = string.Empty;
+
+    public string TraceId { get; set; } = string.Empty;
 
     public DateTimeOffset StartedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 

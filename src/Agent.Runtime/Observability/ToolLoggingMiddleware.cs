@@ -5,13 +5,13 @@ namespace Agent.Runtime.Observability;
 
 public sealed class ToolLoggingMiddleware(IToolInvocationStore store)
 {
-    public Task LogAsync(
+    public async Task LogAsync(
         string toolName,
         string traceId,
         string inputSummary,
         CancellationToken cancellationToken = default)
     {
-        return store.SaveAsync(
+        await store.SaveAsync(
             new ToolInvocation
             {
                 ToolName = toolName,
@@ -30,24 +30,27 @@ public sealed class ToolLoggingMiddleware(IToolInvocationStore store)
         CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
+        var invocation = new ToolInvocation
+        {
+            WorkflowInstanceId = workflowInstanceId,
+            ToolName = toolName,
+            TraceId = traceId,
+            InputSummary = inputSummary
+        };
+
+        await store.SaveAsync(invocation, cancellationToken);
 
         try
         {
             var output = await next(cancellationToken);
             stopwatch.Stop();
 
-            await store.SaveAsync(
-                new ToolInvocation
-                {
-                    WorkflowInstanceId = workflowInstanceId,
-                    ToolName = toolName,
-                    TraceId = traceId,
-                    InputSummary = inputSummary,
-                    OutputSummary = output?.ToString() ?? string.Empty,
-                    Status = ToolInvocationStatus.Succeeded,
-                    DurationMs = stopwatch.ElapsedMilliseconds
-                },
-                cancellationToken);
+            invocation.OutputSummary = output?.ToString() ?? string.Empty;
+            invocation.Status = ToolInvocationStatus.Completed;
+            invocation.DurationMs = stopwatch.ElapsedMilliseconds;
+            invocation.CompletedAtUtc = DateTimeOffset.UtcNow;
+
+            await store.UpdateAsync(invocation, cancellationToken);
 
             return output;
         }
@@ -55,18 +58,13 @@ public sealed class ToolLoggingMiddleware(IToolInvocationStore store)
         {
             stopwatch.Stop();
 
-            await store.SaveAsync(
-                new ToolInvocation
-                {
-                    WorkflowInstanceId = workflowInstanceId,
-                    ToolName = toolName,
-                    TraceId = traceId,
-                    InputSummary = inputSummary,
-                    OutputSummary = ex.Message,
-                    Status = ToolInvocationStatus.Failed,
-                    DurationMs = stopwatch.ElapsedMilliseconds
-                },
-                cancellationToken);
+            invocation.OutputSummary = string.Empty;
+            invocation.ErrorMessage = ex.Message;
+            invocation.Status = ToolInvocationStatus.Failed;
+            invocation.DurationMs = stopwatch.ElapsedMilliseconds;
+            invocation.CompletedAtUtc = DateTimeOffset.UtcNow;
+
+            await store.UpdateAsync(invocation, cancellationToken);
 
             throw;
         }

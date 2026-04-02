@@ -26,6 +26,7 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.WorkflowCode).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(40);
+            entity.HasIndex(x => new { x.WorkflowCode, x.Status });
             entity.HasMany(x => x.Checkpoints)
                 .WithOne()
                 .HasForeignKey(x => x.WorkflowInstanceId);
@@ -35,8 +36,9 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
         {
             entity.ToTable("workflow_checkpoints");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Reason).HasMaxLength(80);
+            entity.Property(x => x.CheckpointType).HasMaxLength(80);
             entity.Property(x => x.StateJson).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.WorkflowInstanceId, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<AgentRun>(entity =>
@@ -46,6 +48,8 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.Property(x => x.AgentName).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(40);
             entity.Property(x => x.ModelProfileCode).HasMaxLength(80);
+            entity.Property(x => x.TraceId).HasMaxLength(128);
+            entity.HasIndex(x => new { x.WorkflowInstanceId, x.TraceId });
         });
 
         modelBuilder.Entity<AgentMessage>(entity =>
@@ -55,6 +59,7 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.Property(x => x.AgentName).HasMaxLength(100);
             entity.Property(x => x.Role).HasMaxLength(30);
             entity.Property(x => x.Content).HasColumnType("text");
+            entity.HasIndex(x => new { x.WorkflowInstanceId, x.SequenceNumber });
         });
 
         modelBuilder.Entity<ConversationSummary>(entity =>
@@ -62,6 +67,7 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.ToTable("conversation_summaries");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.SummaryText).HasColumnType("text");
+            entity.HasIndex(x => new { x.WorkflowInstanceId, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<ToolInvocation>(entity =>
@@ -69,10 +75,13 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.ToTable("tool_invocations");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.ToolName).HasMaxLength(100);
-            entity.Property(x => x.TraceId).HasMaxLength(80);
+            entity.Property(x => x.TraceId).HasMaxLength(128);
             entity.Property(x => x.InputSummary).HasColumnType("text");
             entity.Property(x => x.OutputSummary).HasColumnType("text");
+            entity.Property(x => x.ErrorMessage).HasColumnType("text");
             entity.Property(x => x.Status).HasMaxLength(30);
+            entity.HasIndex(x => new { x.WorkflowInstanceId, x.StartedAtUtc });
+            entity.HasIndex(x => new { x.TraceId, x.ToolName });
         });
     }
 }
