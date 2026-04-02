@@ -8,9 +8,10 @@ src/
 ├─ App.vue        # 外层壳
 ├─ styles.css     # 全局风格变量与基础样式
 ├─ lib/           # AG-UI 与 BFF API 适配
+├─ composables/   # 页面状态机与交互编排
 └─ pages/         # Dashboard / Returns / SOP 页面
 ```
 
 ## 原则
-- 页面状态留在页面里，协议细节下沉到 lib。
+- 页面渲染留在页面里，状态机下沉到 composables，协议细节下沉到 lib。
 - 页面名称直接对应业务场景。

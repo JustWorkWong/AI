@@ -85,108 +85,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-import {
-  decideDispositionApproval,
-  executeDisposition,
-  getDispositionTrace,
-  getReturnWorkbench,
-  type ApprovalDecisionRequest,
-  type DispositionExecutionTraceDto,
-  type DispositionExecutionResultDto,
-  type DispositionSuggestionDto,
-  type ReturnOrderDto
-} from "../lib/api";
+import { createReturnWorkbench } from "../composables/useReturnWorkbench";
 
 const route = useRoute();
-const order = ref<ReturnOrderDto | null>(null);
-const suggestion = ref<DispositionSuggestionDto | null>(null);
-const executionResult = ref<DispositionExecutionResultDto | null>(null);
-const executionTrace = ref<DispositionExecutionTraceDto | null>(null);
-const isExecuting = ref(false);
-const isApproving = ref(false);
-const errorMessage = ref("");
 const approvalActor = "manager-web";
-
-function syncPageState(result: DispositionExecutionResultDto) {
-  executionResult.value = result;
-
-  if (suggestion.value) {
-    suggestion.value = {
-      ...suggestion.value,
-      approvalStatus:
-        result.status === "WaitingForApproval"
-          ? "Pending"
-          : result.status === "Rejected"
-            ? "Rejected"
-            : "Completed",
-      suggestedOutcome: result.outcome ?? suggestion.value.suggestedOutcome
-    };
-  }
-
-  if (order.value && result.status === "Completed") {
-    order.value = {
-      ...order.value,
-      status: "Disposed"
-    };
-  }
-}
-
-const canApprove = computed(() =>
-  executionResult.value?.status === "WaitingForApproval" &&
-  executionResult.value.approvalReferenceId !== null
-);
-
-async function loadWorkbench() {
-  const payload = await getReturnWorkbench(String(route.params.id));
-  order.value = payload.order;
-  suggestion.value = payload.suggestion;
-}
+const {
+  order,
+  suggestion,
+  executionResult,
+  executionTrace,
+  isExecuting,
+  isApproving,
+  errorMessage,
+  canApprove,
+  load,
+  execute: runDisposition,
+  decideApproval: runApprovalDecision
+} = createReturnWorkbench();
 
 async function execute() {
-  isExecuting.value = true;
-  errorMessage.value = "";
-
-  try {
-    const result = await executeDisposition(
-      String(route.params.id),
-      `web-${crypto.randomUUID()}`
-    );
-
-    syncPageState(result);
-    executionTrace.value = await getDispositionTrace(result.workflowInstanceId);
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "执行失败";
-  } finally {
-    isExecuting.value = false;
-  }
+  await runDisposition(String(route.params.id), `web-${crypto.randomUUID()}`);
 }
 
-async function decideApproval(action: ApprovalDecisionRequest["action"]) {
-  if (!executionResult.value) {
-    return;
-  }
-
-  isApproving.value = true;
-  errorMessage.value = "";
-
-  try {
-    const result = await decideDispositionApproval(executionResult.value.workflowInstanceId, {
-      action,
-      actor: approvalActor
-    });
-
-    syncPageState(result);
-    executionTrace.value = await getDispositionTrace(result.workflowInstanceId);
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "审批失败";
-  } finally {
-    isApproving.value = false;
-  }
+async function decideApproval(action: "Approve" | "Reject") {
+  await runApprovalDecision(action, approvalActor);
 }
 
 onMounted(async () => {
-  await loadWorkbench();
+  await load(String(route.params.id));
 });
 </script>
