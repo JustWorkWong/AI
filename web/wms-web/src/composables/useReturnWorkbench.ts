@@ -11,6 +11,7 @@ import {
   type ReturnOrderDto,
   type ReturnWorkbenchViewDto
 } from "../lib/api";
+import { toUserMessage } from "../lib/errors";
 
 export interface ReturnWorkbenchApi {
   getReturnWorkbench(returnOrderId: string): Promise<ReturnWorkbenchViewDto>;
@@ -57,7 +58,7 @@ export function createReturnWorkbench(api: ReturnWorkbenchApi = defaultApi) {
       const result = await api.executeDisposition(returnOrderId, idempotencyKey);
       await syncResult(result);
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "执行失败";
+      errorMessage.value = toUserMessage(error, "执行失败");
     } finally {
       isExecuting.value = false;
     }
@@ -79,7 +80,7 @@ export function createReturnWorkbench(api: ReturnWorkbenchApi = defaultApi) {
 
       await syncResult(result);
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "审批失败";
+      errorMessage.value = toUserMessage(error, "审批失败");
     } finally {
       isApproving.value = false;
     }
