@@ -1,4 +1,5 @@
 using Ops.Bff.Clients;
+using Ops.Bff.Presenters;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 
@@ -21,8 +22,9 @@ public static class ReturnWorkbenchEndpoints
                 return Results.NotFound();
             }
 
-            var suggestion = await TryGetSuggestionAsync(runtimeClient, returnOrderId, cancellationToken)
-                ?? CreateUnavailableSuggestion(returnOrderId);
+            var suggestion = ReturnWorkbenchPresenter.CoalesceSuggestion(
+                await TryGetSuggestionAsync(runtimeClient, returnOrderId, cancellationToken),
+                returnOrderId);
 
             return Results.Ok(new ReturnWorkbenchViewDto(order, suggestion));
         });
@@ -84,12 +86,4 @@ public static class ReturnWorkbenchEndpoints
             return null;
         }
     }
-
-    private static DispositionSuggestionDto CreateUnavailableSuggestion(Guid returnOrderId) =>
-        new(
-            returnOrderId,
-            "Unavailable",
-            "Unknown",
-            [],
-            "Unavailable");
 }
