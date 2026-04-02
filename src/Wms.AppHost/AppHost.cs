@@ -6,17 +6,27 @@ builder.AddKubernetesEnvironment("k8s")
         k8s.HelmChartName = "wms-ai-platform";
     });
 
-var postgres = builder.AddPostgres("postgres");
+var postgresPassword = builder.AddParameter(
+    "postgres-password",
+    "wms-dev-postgres-password",
+    secret: true);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithPassword(postgresPassword)
+    .WithDataVolume("wms-postgres-data");
 var wmsDb = postgres.AddDatabase("wmsdb");
 var aiDb = postgres.AddDatabase("aidb");
 
-var redis = builder.AddRedis("redis");
-var rabbit = builder.AddRabbitMQ("rabbitmq");
+var redis = builder.AddRedis("redis")
+    .WithDataVolume("wms-redis-data");
+var rabbit = builder.AddRabbitMQ("rabbitmq")
+    .WithDataVolume("wms-rabbitmq-data");
 
 _ = builder.AddContainer("minio", "quay.io/minio/minio")
     .WithArgs("server", "/data", "--console-address", ":9001")
     .WithHttpEndpoint(targetPort: 9000, name: "api")
     .WithHttpEndpoint(targetPort: 9001, name: "console")
+    .WithVolume("wms-minio-data", "/data")
     .WithEnvironment("MINIO_ROOT_USER", "minioadmin")
     .WithEnvironment("MINIO_ROOT_PASSWORD", "minioadmin");
 

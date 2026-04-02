@@ -45,9 +45,7 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
     }
 
     public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-        httpClient.GetFromJsonAsync<DispositionSuggestionDto>(
-            $"/internal/runtime/dispositions/{returnOrderId}",
-            cancellationToken);
+        GetDispositionSuggestionCoreAsync(returnOrderId, cancellationToken);
 
     public async Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
         Guid returnOrderId,
@@ -133,5 +131,22 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
         response.StatusCode = StatusCodes.Status200OK;
         response.ContentType = upstream.Content.Headers.ContentType?.MediaType ?? "text/event-stream";
         await upstream.Content.CopyToAsync(response.Body, cancellationToken);
+    }
+
+    private async Task<DispositionSuggestionDto?> GetDispositionSuggestionCoreAsync(
+        Guid returnOrderId,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.GetAsync(
+            $"/internal/runtime/dispositions/{returnOrderId}",
+            cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DispositionSuggestionDto>(cancellationToken: cancellationToken);
     }
 }

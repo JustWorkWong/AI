@@ -15,12 +15,14 @@ public static class ReturnWorkbenchEndpoints
             CancellationToken cancellationToken) =>
         {
             var order = await domainClient.GetReturnOrderAsync(returnOrderId, cancellationToken);
-            var suggestion = await runtimeClient.GetDispositionSuggestionAsync(returnOrderId, cancellationToken);
 
-            if (order is null || suggestion is null)
+            if (order is null)
             {
                 return Results.NotFound();
             }
+
+            var suggestion = await TryGetSuggestionAsync(runtimeClient, returnOrderId, cancellationToken)
+                ?? CreateUnavailableSuggestion(returnOrderId);
 
             return Results.Ok(new ReturnWorkbenchViewDto(order, suggestion));
         });
@@ -67,4 +69,27 @@ public static class ReturnWorkbenchEndpoints
 
         return endpoints;
     }
+
+    private static async Task<DispositionSuggestionDto?> TryGetSuggestionAsync(
+        IAgentRuntimeClient runtimeClient,
+        Guid returnOrderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await runtimeClient.GetDispositionSuggestionAsync(returnOrderId, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    private static DispositionSuggestionDto CreateUnavailableSuggestion(Guid returnOrderId) =>
+        new(
+            returnOrderId,
+            "Unavailable",
+            "Unknown",
+            [],
+            "Unavailable");
 }

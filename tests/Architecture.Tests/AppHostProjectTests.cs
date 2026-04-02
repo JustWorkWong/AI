@@ -27,4 +27,18 @@ public sealed class AppHostProjectTests
         Assert.Contains("ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL", launchSettings);
         Assert.Contains("ASPIRE_ALLOW_UNSECURED_TRANSPORT", launchSettings);
     }
+
+    [Fact]
+    public void AppHost_should_persist_stateful_infrastructure_with_named_volumes()
+    {
+        var appHostText = File.ReadAllText(@"D:\AI\src\Wms.AppHost\AppHost.cs");
+
+        Assert.Contains("AddParameter(", appHostText);
+        Assert.Contains("\"postgres-password\"", appHostText);
+        Assert.Contains(".WithPassword(postgresPassword)", appHostText);
+        Assert.Contains("WithDataVolume(\"wms-postgres-data\")", appHostText);
+        Assert.Contains("WithDataVolume(\"wms-redis-data\")", appHostText);
+        Assert.Contains("WithDataVolume(\"wms-rabbitmq-data\")", appHostText);
+        Assert.Contains("WithVolume(\"wms-minio-data\", \"/data\")", appHostText);
+    }
 }
