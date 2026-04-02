@@ -124,6 +124,70 @@ public sealed class ReturnDispositionApprovalServiceTests
         Assert.Equal(2, workflow.Version);
     }
 
+    [Fact]
+    public async Task Decide_failure_after_claim_should_restore_waiting_approval()
+    {
+        await using var db = CreateDbContext();
+        var workflowInstanceId = await SeedWaitingWorkflowAsync(db);
+        var client = new FailingDomainDispositionClient
+        {
+            DecideFailuresRemaining = 1
+        };
+        var service = new ReturnDispositionApprovalService(
+            client,
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.DecideAsync(
+                workflowInstanceId,
+                new ApprovalDecisionRequest("Reject", "manager-3"),
+                CancellationToken.None));
+
+        var workflow = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
+        Assert.Equal(WorkflowInstanceStatus.WaitingApproval, workflow.Status);
+        Assert.Equal(2, workflow.Version);
+        Assert.Null(workflow.CompletedAtUtc);
+    }
+
+    [Fact]
+    public async Task Apply_failure_after_claim_should_restore_waiting_approval_and_allow_retry()
+    {
+        await using var db = CreateDbContext();
+        var workflowInstanceId = await SeedWaitingWorkflowAsync(db);
+        var client = new FailingDomainDispositionClient
+        {
+            ApplyFailuresRemaining = 1
+        };
+        var service = new ReturnDispositionApprovalService(
+            client,
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.DecideAsync(
+                workflowInstanceId,
+                new ApprovalDecisionRequest("Approve", "manager-4"),
+                CancellationToken.None));
+
+        var afterFailure = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
+        Assert.Equal(WorkflowInstanceStatus.WaitingApproval, afterFailure.Status);
+        Assert.Equal(2, afterFailure.Version);
+
+        var retryResult = await service.DecideAsync(
+            workflowInstanceId,
+            new ApprovalDecisionRequest("Approve", "manager-4"),
+            CancellationToken.None);
+
+        Assert.Equal("Completed", retryResult.Status);
+
+        var workflow = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
+        Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
+        Assert.Equal(4, workflow.Version);
+        Assert.Equal(2, client.Decisions.Count);
+        Assert.Equal(2, client.AppliedCommands.Count);
+    }
+
     private static AgentRuntimeDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AgentRuntimeDbContext>()
@@ -176,6 +240,41 @@ public sealed class ReturnDispositionApprovalServiceTests
         public Task DecideApprovalAsync(Guid approvalTaskId, ApprovalDecisionCommand command, CancellationToken cancellationToken)
         {
             Decisions.Add(command);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FailingDomainDispositionClient : IDomainDispositionClient
+    {
+        public int DecideFailuresRemaining { get; set; }
+        public int ApplyFailuresRemaining { get; set; }
+        public List<ApplyDispositionCommand> AppliedCommands { get; } = [];
+        public List<ApprovalDecisionCommand> Decisions { get; } = [];
+
+        public Task<Guid> RequestApprovalAsync(RequestDispositionApproval command, CancellationToken cancellationToken) =>
+            Task.FromResult(Guid.NewGuid());
+
+        public Task ApplyDispositionAsync(ApplyDispositionCommand command, CancellationToken cancellationToken)
+        {
+            AppliedCommands.Add(command);
+            if (ApplyFailuresRemaining > 0)
+            {
+                ApplyFailuresRemaining--;
+                throw new InvalidOperationException("apply failed");
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task DecideApprovalAsync(Guid approvalTaskId, ApprovalDecisionCommand command, CancellationToken cancellationToken)
+        {
+            Decisions.Add(command);
+            if (DecideFailuresRemaining > 0)
+            {
+                DecideFailuresRemaining--;
+                throw new InvalidOperationException("decide failed");
+            }
+
             return Task.CompletedTask;
         }
     }

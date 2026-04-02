@@ -37,34 +37,45 @@ public sealed class ReturnDispositionApprovalService(
         var traceId = Guid.NewGuid().ToString("N");
         var command = new ApprovalDecisionCommand(request.Action, request.Actor);
 
-        await toolLoggingMiddleware.ExecuteAsync(
-            "DecideApproval",
-            traceId,
-            JsonSerializer.Serialize(new { workflowInstanceId, approvalReferenceId, request.Action, request.Actor }),
-            async ct =>
+        try
+        {
+            await toolLoggingMiddleware.ExecuteAsync(
+                "DecideApproval",
+                traceId,
+                JsonSerializer.Serialize(new { workflowInstanceId, approvalReferenceId, request.Action, request.Actor }),
+                async ct =>
+                {
+                    await domainDispositionClient.DecideApprovalAsync(approvalReferenceId, command, ct);
+                    return "accepted";
+                },
+                workflowInstanceId,
+                cancellationToken);
+
+            if (string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase))
             {
-                await domainDispositionClient.DecideApprovalAsync(approvalReferenceId, command, ct);
-                return "accepted";
-            },
-            workflowInstanceId,
-            cancellationToken);
+                await toolLoggingMiddleware.ExecuteAsync(
+                    "ApplyDispositionAfterApproval",
+                    traceId,
+                    JsonSerializer.Serialize(new { state.ReturnOrderId, state.Outcome, state.IdempotencyKey }),
+                    async ct =>
+                    {
+                        await domainDispositionClient.ApplyDispositionAsync(
+                            new ApplyDispositionCommand(state.ReturnOrderId, state.Outcome, state.IdempotencyKey),
+                            ct);
+                        return "accepted";
+                    },
+                        workflowInstanceId,
+                        cancellationToken);
+            }
+        }
+        catch
+        {
+            await RestoreWaitingApprovalAsync(workflow, cancellationToken);
+            throw;
+        }
 
         if (string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase))
         {
-            await toolLoggingMiddleware.ExecuteAsync(
-                "ApplyDispositionAfterApproval",
-                traceId,
-                JsonSerializer.Serialize(new { state.ReturnOrderId, state.Outcome, state.IdempotencyKey }),
-                async ct =>
-                {
-                    await domainDispositionClient.ApplyDispositionAsync(
-                        new ApplyDispositionCommand(state.ReturnOrderId, state.Outcome, state.IdempotencyKey),
-                        ct);
-                    return "accepted";
-                },
-                    workflowInstanceId,
-                    cancellationToken);
-
             return await CompleteApprovalAsync(
                 workflow,
                 "Completed",
@@ -186,6 +197,22 @@ public sealed class ReturnDispositionApprovalService(
             resultStatus,
             approvalReferenceId,
             outcome);
+    }
+
+    private async Task RestoreWaitingApprovalAsync(
+        WorkflowInstance workflow,
+        CancellationToken cancellationToken)
+    {
+        workflow.ReturnApprovalToQueue();
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new WorkflowConflictException("Workflow approval could not be restored for retry.", ex);
+        }
     }
 }
 

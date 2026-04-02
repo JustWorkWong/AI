@@ -34,6 +34,13 @@ public sealed class WorkflowInstance
         Version++;
     }
 
+    public void ReturnApprovalToQueue()
+    {
+        Status = WorkflowInstanceStatus.WaitingApproval;
+        CompletedAtUtc = null;
+        Version++;
+    }
+
     public void Complete()
     {
         Status = WorkflowInstanceStatus.Completed;
