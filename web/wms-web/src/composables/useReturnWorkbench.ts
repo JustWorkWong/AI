@@ -87,18 +87,17 @@ export function createReturnWorkbench(api: ReturnWorkbenchApi = defaultApi) {
   }
 
   async function syncResult(result: DispositionExecutionResultDto) {
+    applyExecutionResult(result);
+    await refreshExecutionTrace(result.workflowInstanceId);
+  }
+
+  function applyExecutionResult(result: DispositionExecutionResultDto) {
     executionResult.value = result;
-    executionTrace.value = await api.getDispositionTrace(result.workflowInstanceId);
 
     if (suggestion.value) {
       suggestion.value = {
         ...suggestion.value,
-        approvalStatus:
-          result.status === "WaitingForApproval"
-            ? "Pending"
-            : result.status === "Rejected"
-              ? "Rejected"
-              : "Completed",
+        approvalStatus: toApprovalStatus(result.status),
         suggestedOutcome: result.outcome ?? suggestion.value.suggestedOutcome
       };
     }
@@ -109,6 +108,18 @@ export function createReturnWorkbench(api: ReturnWorkbenchApi = defaultApi) {
         status: "Disposed"
       };
     }
+  }
+
+  async function refreshExecutionTrace(workflowInstanceId: string) {
+    executionTrace.value = await api.getDispositionTrace(workflowInstanceId);
+  }
+
+  function toApprovalStatus(status: DispositionExecutionResultDto["status"]) {
+    return status === "WaitingForApproval"
+      ? "Pending"
+      : status === "Rejected"
+        ? "Rejected"
+        : "Completed";
   }
 
   return {
