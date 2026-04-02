@@ -28,6 +28,33 @@ export interface DispositionExecutionResultDto {
   outcome: string | null;
 }
 
+export interface ToolInvocationDto {
+  toolInvocationId: string;
+  toolName: string;
+  status: string;
+  traceId: string;
+  durationMs: number;
+  inputSummary: string;
+  outputSummary: string;
+  errorMessage: string | null;
+}
+
+export interface WorkflowCheckpointDto {
+  checkpointId: string;
+  superstep: number;
+  checkpointType: string;
+  stateJson: string;
+}
+
+export interface DispositionExecutionTraceDto {
+  workflowInstanceId: string;
+  workflowCode: string;
+  status: string;
+  approvalReferenceId: string | null;
+  toolInvocations: ToolInvocationDto[];
+  checkpoints: WorkflowCheckpointDto[];
+}
+
 export interface ReturnWorkbenchViewDto {
   order: ReturnOrderDto;
   suggestion: DispositionSuggestionDto;
@@ -65,6 +92,13 @@ export async function executeDisposition(
   });
 
   return readJson<DispositionExecutionResultDto>(response);
+}
+
+export async function getDispositionTrace(
+  workflowInstanceId: string
+): Promise<DispositionExecutionTraceDto> {
+  const response = await fetch(`/api/returns/workbench/executions/${workflowInstanceId}`);
+  return readJson<DispositionExecutionTraceDto>(response);
 }
 
 export async function advanceSopStep(

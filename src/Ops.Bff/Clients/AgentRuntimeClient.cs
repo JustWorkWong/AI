@@ -15,6 +15,10 @@ public interface IAgentRuntimeClient
         ExecuteDispositionRequest request,
         CancellationToken cancellationToken);
 
+    Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
+        Guid workflowInstanceId,
+        CancellationToken cancellationToken);
+
     Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
         Guid sessionId,
         AdvanceSopStepRequest request,
@@ -56,6 +60,23 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
 
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<DispositionExecutionResultDto>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
+        Guid workflowInstanceId,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.GetAsync(
+            $"/internal/runtime/dispositions/executions/{workflowInstanceId}",
+            cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DispositionExecutionTraceDto>(cancellationToken: cancellationToken);
     }
 
     public async Task<SopExecutionViewDto?> AdvanceSopSessionAsync(

@@ -69,6 +69,11 @@ public sealed class ReturnDispositionExecutionEndpointsTests
                 null,
                 "Resell"));
 
+        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
+            Guid workflowInstanceId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionTraceDto?>(null);
+
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(Guid sessionId, AdvanceSopStepRequest request, CancellationToken cancellationToken) =>
             Task.FromResult<SopExecutionViewDto?>(null);
 

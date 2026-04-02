@@ -45,6 +45,26 @@
         </li>
       </ul>
     </article>
+
+    <section v-if="executionTrace" class="panel-grid">
+      <article class="panel">
+        <h3>Tool Timeline</h3>
+        <ul class="citation-list">
+          <li v-for="tool in executionTrace.toolInvocations" :key="tool.toolInvocationId">
+            {{ tool.toolName }} / {{ tool.status }} / {{ tool.durationMs }} ms
+          </li>
+        </ul>
+      </article>
+
+      <article class="panel">
+        <h3>Checkpoints</h3>
+        <ul class="citation-list">
+          <li v-for="checkpoint in executionTrace.checkpoints" :key="checkpoint.checkpointId">
+            step {{ checkpoint.superstep }} / {{ checkpoint.checkpointType }} / {{ checkpoint.stateJson }}
+          </li>
+        </ul>
+      </article>
+    </section>
   </section>
 </template>
 
@@ -53,7 +73,9 @@ import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import {
   executeDisposition,
+  getDispositionTrace,
   getReturnWorkbench,
+  type DispositionExecutionTraceDto,
   type DispositionExecutionResultDto,
   type DispositionSuggestionDto,
   type ReturnOrderDto
@@ -63,6 +85,7 @@ const route = useRoute();
 const order = ref<ReturnOrderDto | null>(null);
 const suggestion = ref<DispositionSuggestionDto | null>(null);
 const executionResult = ref<DispositionExecutionResultDto | null>(null);
+const executionTrace = ref<DispositionExecutionTraceDto | null>(null);
 const isExecuting = ref(false);
 const errorMessage = ref("");
 
@@ -83,6 +106,7 @@ async function execute() {
     );
 
     executionResult.value = result;
+    executionTrace.value = await getDispositionTrace(result.workflowInstanceId);
 
     if (suggestion.value) {
       suggestion.value = {

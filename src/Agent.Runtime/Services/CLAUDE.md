@@ -3,6 +3,7 @@
 ## 文件
 - `ReturnDispositionAdvisor.cs`: 聚合退货单、案例与 SOP 证据，生成建议视图，并保留 tool 证据链。
 - `ReturnDispositionExecutor.cs`: 运行退货处置 workflow，负责审批或落单，并持久化执行状态。
+- `ReturnDispositionTraceReader.cs`: 聚合 workflow、tool timeline 与 checkpoint，供工作台展示执行轨迹。
 - `SopAssistService.cs`: 用真实 workflow 串联候选、切块、重排与 checkpoint，生成 SOP 执行视图。
 
 ## 原则

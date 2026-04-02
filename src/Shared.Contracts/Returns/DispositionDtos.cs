@@ -29,6 +29,30 @@ public sealed record DispositionExecutionResultDto(
     Guid? ApprovalReferenceId,
     string? Outcome);
 
+public sealed record ToolInvocationDto(
+    Guid ToolInvocationId,
+    string ToolName,
+    string Status,
+    string TraceId,
+    long DurationMs,
+    string InputSummary,
+    string OutputSummary,
+    string? ErrorMessage);
+
+public sealed record WorkflowCheckpointDto(
+    Guid CheckpointId,
+    int Superstep,
+    string CheckpointType,
+    string StateJson);
+
+public sealed record DispositionExecutionTraceDto(
+    Guid WorkflowInstanceId,
+    string WorkflowCode,
+    string Status,
+    Guid? ApprovalReferenceId,
+    IReadOnlyList<ToolInvocationDto> ToolInvocations,
+    IReadOnlyList<WorkflowCheckpointDto> Checkpoints);
+
 public sealed record RequestDispositionApproval(
     Guid ReturnOrderId,
     string SuggestedOutcome);

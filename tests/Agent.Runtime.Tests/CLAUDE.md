@@ -8,6 +8,7 @@ Agent.Runtime.Tests/
 ├─ DomainKnowledgeClientTests.cs    # 验证 runtime 读取 domain 端点时的 404 退化
 ├─ ReturnDispositionWorkflowTests.cs # 验证退货处置 workflow 的审批分支
 ├─ ReturnDispositionExecutorTests.cs # 验证退货处置执行链、审批与落单
+├─ ReturnDispositionTraceReaderTests.cs # 验证退货执行轨迹聚合
 ├─ SopAssistWorkflowTests.cs         # 验证 SOP workflow 的证据分支
 ├─ ReturnDispositionAdvisorTests.cs  # 验证退货建议聚合真实 domain 读边界与 tool 留痕
 ├─ SopAssistServiceTests.cs          # 验证 SOP workflow、checkpoint 与证据输出

@@ -76,6 +76,11 @@ public sealed class ReturnWorkbenchEndpointsTests
             CancellationToken cancellationToken) =>
             Task.FromResult<DispositionExecutionResultDto?>(null);
 
+        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
+            Guid workflowInstanceId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionTraceDto?>(null);
+
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
             Guid sessionId,
             AdvanceSopStepRequest request,

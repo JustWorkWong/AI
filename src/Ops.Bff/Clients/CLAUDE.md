@@ -2,7 +2,7 @@
 
 ## 文件
 - `DomainServiceClient.cs`: 调业务真相源的薄客户端。
-- `AgentRuntimeClient.cs`: 调 runtime 的薄客户端，包含建议、执行和 SSE。
+- `AgentRuntimeClient.cs`: 调 runtime 的薄客户端，包含建议、执行、轨迹和 SSE。
 
 ## 原则
 - 这里收敛外部依赖差异，不放页面聚合逻辑。

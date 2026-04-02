@@ -34,6 +34,15 @@ public static class ReturnWorkbenchEndpoints
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
+        endpoints.MapGet("/api/returns/workbench/executions/{workflowInstanceId:guid}", async (
+            Guid workflowInstanceId,
+            IAgentRuntimeClient runtimeClient,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await runtimeClient.GetDispositionTraceAsync(workflowInstanceId, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
         return endpoints;
     }
 }

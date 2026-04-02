@@ -44,6 +44,7 @@ builder.Services.AddScoped<ToolLoggingMiddleware>();
 builder.Services.AddSingleton<SseEventWriter>();
 builder.Services.AddScoped<ReturnDispositionAdvisor>();
 builder.Services.AddScoped<ReturnDispositionExecutor>();
+builder.Services.AddScoped<ReturnDispositionTraceReader>();
 builder.Services.AddScoped<SopAssistService>();
 
 var app = builder.Build();
@@ -104,6 +105,15 @@ app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", async
     {
         return Results.NotFound();
     }
+});
+
+app.MapGet("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}", async (
+    Guid workflowInstanceId,
+    ReturnDispositionTraceReader reader,
+    CancellationToken cancellationToken) =>
+{
+    var result = await reader.GetTraceAsync(workflowInstanceId, cancellationToken);
+    return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
 app.MapPost("/internal/runtime/sop/{sessionId:guid}/steps", async (
