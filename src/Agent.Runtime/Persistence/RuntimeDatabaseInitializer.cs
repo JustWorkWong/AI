@@ -14,11 +14,6 @@ public static class RuntimeDatabaseInitializer
         IHostEnvironment environment,
         CancellationToken cancellationToken = default)
     {
-        if (!environment.IsDevelopment())
-        {
-            return;
-        }
-
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AgentRuntimeDbContext>();
         await EnsureDatabaseReadyAsync(db, cancellationToken);

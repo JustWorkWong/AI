@@ -54,7 +54,7 @@ public sealed class DevelopmentBootstrapperTests : IClassFixture<PostgresFixture
     }
 
     [Fact]
-    public async Task Initialize_should_apply_unique_index_upgrade_idempotently()
+    public async Task Initialize_should_apply_unique_index_upgrade_idempotently_outside_development()
     {
         var connectionString = await CreateIsolatedDatabaseAsync(_fixture.ConnectionString, "wms_bootstrap");
         await using var app = await TestAppFactory.CreateDomainServiceAsync(connectionString);
@@ -67,9 +67,9 @@ public sealed class DevelopmentBootstrapperTests : IClassFixture<PostgresFixture
                 """);
         }
 
-        var development = new StubHostEnvironment(Environments.Development);
-        await DevelopmentBootstrapper.InitializeAsync(app.Services, development);
-        await DevelopmentBootstrapper.InitializeAsync(app.Services, development);
+        var testing = new StubHostEnvironment("Testing");
+        await DevelopmentBootstrapper.InitializeAsync(app.Services, testing);
+        await DevelopmentBootstrapper.InitializeAsync(app.Services, testing);
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();

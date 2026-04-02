@@ -20,16 +20,17 @@ public static class DevelopmentBootstrapper
         IHostEnvironment environment,
         CancellationToken cancellationToken = default)
     {
-        if (!environment.IsDevelopment())
-        {
-            return;
-        }
-
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
 
         await EnsureDatabaseReadyAsync(db, cancellationToken);
         await ApplySchemaUpgradesAsync(db, cancellationToken);
+
+        if (!environment.IsDevelopment())
+        {
+            return;
+        }
+
         await SeedRolesAsync(db, cancellationToken);
         await SeedDemoReturnFlowAsync(db, cancellationToken);
     }

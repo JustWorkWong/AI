@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Wms.DomainService.Persistence;
+using Wms.DomainService.Seed;
 
 namespace Wms.DomainService.IntegrationTests;
 
@@ -25,10 +28,20 @@ public static class TestAppFactory
                 });
             });
 
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await DevelopmentBootstrapper.InitializeAsync(factory.Services, new StubHostEnvironment("Testing"));
 
         return factory;
+    }
+
+    private sealed class StubHostEnvironment(string environmentName) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = environmentName;
+
+        public string ApplicationName { get; set; } = "Wms.DomainService.Tests";
+
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new PhysicalFileProvider(AppContext.BaseDirectory);
     }
 }

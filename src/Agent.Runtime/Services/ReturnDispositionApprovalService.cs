@@ -50,8 +50,16 @@ public sealed class ReturnDispositionApprovalService(
                 },
                 workflowInstanceId,
                 cancellationToken);
+        }
+        catch
+        {
+            await RestoreWaitingApprovalAsync(workflow, cancellationToken);
+            throw;
+        }
 
-            if (string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase))
+        {
+            try
             {
                 await toolLoggingMiddleware.ExecuteAsync(
                     "ApplyDispositionAfterApproval",
@@ -64,18 +72,15 @@ public sealed class ReturnDispositionApprovalService(
                             ct);
                         return "accepted";
                     },
-                        workflowInstanceId,
-                        cancellationToken);
+                    workflowInstanceId,
+                    cancellationToken);
             }
-        }
-        catch
-        {
-            await RestoreWaitingApprovalAsync(workflow, cancellationToken);
-            throw;
-        }
+            catch
+            {
+                await FailApprovalAsync(workflow, cancellationToken);
+                throw;
+            }
 
-        if (string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase))
-        {
             return await CompleteApprovalAsync(
                 workflow,
                 "Completed",
@@ -212,6 +217,22 @@ public sealed class ReturnDispositionApprovalService(
         catch (DbUpdateConcurrencyException ex)
         {
             throw new WorkflowConflictException("Workflow approval could not be restored for retry.", ex);
+        }
+    }
+
+    private async Task FailApprovalAsync(
+        WorkflowInstance workflow,
+        CancellationToken cancellationToken)
+    {
+        workflow.Fail();
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new WorkflowConflictException("Workflow approval failure state could not be persisted.", ex);
         }
     }
 }

@@ -151,7 +151,7 @@ public sealed class ReturnDispositionApprovalServiceTests
     }
 
     [Fact]
-    public async Task Apply_failure_after_claim_should_restore_waiting_approval_and_allow_retry()
+    public async Task Apply_failure_after_approval_should_mark_workflow_failed_and_block_retry()
     {
         await using var db = CreateDbContext();
         var workflowInstanceId = await SeedWaitingWorkflowAsync(db);
@@ -171,21 +171,18 @@ public sealed class ReturnDispositionApprovalServiceTests
                 CancellationToken.None));
 
         var afterFailure = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
-        Assert.Equal(WorkflowInstanceStatus.WaitingApproval, afterFailure.Status);
+        Assert.Equal(WorkflowInstanceStatus.Failed, afterFailure.Status);
         Assert.Equal(2, afterFailure.Version);
+        Assert.NotNull(afterFailure.CompletedAtUtc);
 
-        var retryResult = await service.DecideAsync(
-            workflowInstanceId,
-            new ApprovalDecisionRequest("Approve", "manager-4"),
-            CancellationToken.None);
+        await Assert.ThrowsAsync<WorkflowConflictException>(() =>
+            service.DecideAsync(
+                workflowInstanceId,
+                new ApprovalDecisionRequest("Approve", "manager-4"),
+                CancellationToken.None));
 
-        Assert.Equal("Completed", retryResult.Status);
-
-        var workflow = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
-        Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
-        Assert.Equal(4, workflow.Version);
-        Assert.Equal(2, client.Decisions.Count);
-        Assert.Equal(2, client.AppliedCommands.Count);
+        Assert.Single(client.Decisions);
+        Assert.Single(client.AppliedCommands);
     }
 
     private static AgentRuntimeDbContext CreateDbContext()

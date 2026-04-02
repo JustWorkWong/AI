@@ -256,7 +256,7 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
-    public async Task Runtime_initializer_should_add_version_column_idempotently()
+    public async Task Runtime_initializer_should_add_version_column_idempotently_outside_development()
     {
         var connectionString = await CreateIsolatedDatabaseAsync(_fixture.ConnectionString, "agent_runtime");
         using var app = await CreateAppAsync(connectionString: connectionString);
@@ -279,9 +279,9 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
                 """);
         }
 
-        var development = new StubHostEnvironment(Environments.Development);
-        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, development);
-        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, development);
+        var testing = new StubHostEnvironment("Testing");
+        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, testing);
+        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, testing);
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -330,10 +330,11 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
         WebApplicationFactory<global::Program> app,
         Action<AgentRuntimeDbContext>? seed)
     {
+        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, new StubHostEnvironment("Testing"));
+
         await using var scope = app.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AgentRuntimeDbContext>();
 
-        await db.Database.EnsureCreatedAsync();
         seed?.Invoke(db);
         await db.SaveChangesAsync();
     }
