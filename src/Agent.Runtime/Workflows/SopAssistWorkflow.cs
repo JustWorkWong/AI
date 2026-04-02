@@ -11,31 +11,17 @@ public sealed class SopAssistWorkflow
     {
         var candidates = await context.InvokeAsync<string[]>(
             SearchSopCandidatesTool.Name,
-            new
-            {
-                input.OperationCode,
-                input.StepCode
-            },
+            new SearchSopCandidatesToolInput(input.OperationCode, input.StepCode),
             cancellationToken);
 
         var chunks = await context.InvokeAsync<string[]>(
             RetrieveSopChunksTool.Name,
-            new
-            {
-                input.OperationCode,
-                input.StepCode,
-                Candidates = candidates
-            },
+            new RetrieveSopChunksToolInput(input.OperationCode, input.StepCode, candidates),
             cancellationToken);
 
         var evidence = await context.InvokeAsync<string[]>(
             RankSopEvidenceTool.Name,
-            new
-            {
-                input.OperationCode,
-                input.StepCode,
-                Chunks = chunks
-            },
+            new RankSopEvidenceToolInput(input.OperationCode, input.StepCode, chunks),
             cancellationToken);
 
         if (evidence.Length == 0)

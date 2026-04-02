@@ -1,5 +1,8 @@
 using Agent.Runtime.Clients;
+using Agent.Runtime.Observability;
+using Agent.Runtime.Persistence;
 using Agent.Runtime.Services;
+using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -11,7 +14,11 @@ public sealed class SopAssistServiceTests
     public async Task Advance_should_return_ranked_citations_for_matching_step()
     {
         var sessionId = Guid.NewGuid();
-        var service = new SopAssistService(new StubDomainKnowledgeClient());
+        await using var db = CreateDbContext();
+        var service = new SopAssistService(
+            new StubDomainKnowledgeClient(),
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
 
         var result = await service.AdvanceAsync(
             sessionId,
@@ -22,6 +29,37 @@ public sealed class SopAssistServiceTests
         Assert.Equal("INSPECT", result.CurrentStepCode);
         Assert.NotEmpty(result.Citations);
         Assert.True(result.RequiresAcknowledgement);
+    }
+
+    [Fact]
+    public async Task Advance_should_persist_workflow_instance_checkpoint_and_tool_logs()
+    {
+        var sessionId = Guid.NewGuid();
+        await using var db = CreateDbContext();
+        var service = new SopAssistService(
+            new StubDomainKnowledgeClient(),
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
+
+        _ = await service.AdvanceAsync(
+            sessionId,
+            new AdvanceSopStepRequest("INSPECT", "screen cracked"),
+            CancellationToken.None);
+
+        var workflow = Assert.Single(db.WorkflowInstances);
+        Assert.Equal("sop-assist", workflow.WorkflowCode);
+        Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
+        Assert.Single(db.WorkflowCheckpoints);
+        Assert.Equal(3, db.ToolInvocations.Count());
+    }
+
+    private static AgentRuntimeDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AgentRuntimeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        return new AgentRuntimeDbContext(options);
     }
 
     private sealed class StubDomainKnowledgeClient : IDomainKnowledgeClient

@@ -1,5 +1,8 @@
 using Agent.Runtime.Clients;
+using Agent.Runtime.Observability;
+using Agent.Runtime.Persistence;
 using Agent.Runtime.Services;
+using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -11,7 +14,11 @@ public sealed class ReturnDispositionAdvisorTests
     public async Task Get_suggestion_should_include_sop_and_historical_case_citations()
     {
         var returnOrderId = Guid.NewGuid();
-        var advisor = new ReturnDispositionAdvisor(new StubDomainKnowledgeClient(returnOrderId));
+        await using var db = CreateDbContext();
+        var advisor = new ReturnDispositionAdvisor(
+            new StubDomainKnowledgeClient(returnOrderId),
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
 
         var result = await advisor.GetSuggestionAsync(returnOrderId, CancellationToken.None);
 
@@ -19,6 +26,33 @@ public sealed class ReturnDispositionAdvisorTests
         Assert.Equal("Scrap", result.SuggestedOutcome);
         Assert.Contains(result.Citations, x => x.SourceType == "sop");
         Assert.Contains(result.Citations, x => x.SourceType == "historical-case");
+    }
+
+    [Fact]
+    public async Task Get_suggestion_should_record_workflow_and_tool_invocations()
+    {
+        var returnOrderId = Guid.NewGuid();
+        await using var db = CreateDbContext();
+        var advisor = new ReturnDispositionAdvisor(
+            new StubDomainKnowledgeClient(returnOrderId),
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
+
+        _ = await advisor.GetSuggestionAsync(returnOrderId, CancellationToken.None);
+
+        var workflow = Assert.Single(db.WorkflowInstances);
+        Assert.Equal("return-disposition-read", workflow.WorkflowCode);
+        Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
+        Assert.Equal(3, db.ToolInvocations.Count());
+    }
+
+    private static AgentRuntimeDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AgentRuntimeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        return new AgentRuntimeDbContext(options);
     }
 
     private sealed class StubDomainKnowledgeClient(Guid returnOrderId) : IDomainKnowledgeClient

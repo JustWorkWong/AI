@@ -4,7 +4,7 @@
 ```text
 Workflows/
 ├─ RuntimeContext.cs              # workflow 运行上下文，统一工具调用、生成与 checkpoint
-├─ WorkflowModels.cs              # 两条 workflow 的输入输出模型
+├─ WorkflowModels.cs              # 两条 workflow 的输入输出模型与 tool 输入契约
 ├─ ReturnDispositionWorkflow.cs   # 退货质检与处置主流程
 └─ SopAssistWorkflow.cs           # SOP 辅助执行主流程
 ```

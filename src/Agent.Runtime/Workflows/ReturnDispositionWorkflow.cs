@@ -11,17 +11,17 @@ public sealed class ReturnDispositionWorkflow
     {
         var returnOrder = await context.InvokeAsync<ReturnOrderSnapshot>(
             GetReturnOrderTool.Name,
-            new { input.ReturnOrderId },
+            new GetReturnOrderToolInput(input.ReturnOrderId),
             cancellationToken);
 
         var sop = await context.InvokeAsync<string[]>(
             SearchSopTool.Name,
-            new { input.ReturnOrderId, ReturnOrder = returnOrder },
+            new SearchReturnSopToolInput(input.ReturnOrderId, returnOrder),
             cancellationToken);
 
         var cases = await context.InvokeAsync<string[]>(
             SearchHistoricalCasesTool.Name,
-            new { input.ReturnOrderId, ReturnOrder = returnOrder },
+            new SearchHistoricalCasesToolInput(input.ReturnOrderId, returnOrder),
             cancellationToken);
 
         var suggestion = await context.GenerateAsync<DispositionSuggestion>(
@@ -39,11 +39,7 @@ public sealed class ReturnDispositionWorkflow
         {
             var approval = await context.InvokeAsync<ApprovalReference>(
                 RequestDispositionApprovalTool.Name,
-                new
-                {
-                    input.ReturnOrderId,
-                    suggestion.Outcome
-                },
+                new RequestDispositionApprovalToolInput(input.ReturnOrderId, suggestion.Outcome),
                 cancellationToken);
 
             await context.CreateCheckpointAsync("approval", approval.ReferenceId, cancellationToken);
@@ -52,12 +48,7 @@ public sealed class ReturnDispositionWorkflow
 
         await context.InvokeAsync(
             ApplyDispositionDecisionTool.Name,
-            new
-            {
-                input.ReturnOrderId,
-                suggestion.Outcome,
-                input.IdempotencyKey
-            },
+            new ApplyDispositionDecisionToolInput(input.ReturnOrderId, suggestion.Outcome, input.IdempotencyKey),
             cancellationToken);
 
         return WorkflowResult.Completed(suggestion.Outcome);
