@@ -3,6 +3,7 @@ using Shared.Contracts.Approvals;
 using Wms.DomainService.Auth;
 using Wms.DomainService.Endpoints;
 using Wms.DomainService.Persistence;
+using Wms.DomainService.Storage;
 using Wms.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,7 @@ builder.Services.AddDbContext<WmsDbContext>(options =>
 });
 
 builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<IObjectStorage, NoOpObjectStorage>();
 
 var app = builder.Build();
 
@@ -53,6 +55,7 @@ app.MapPost("/internal/auth/sync", async (
 });
 
 app.MapDispositionEndpoints();
+app.MapAttachmentEndpoints();
 app.MapWmsDefaultEndpoints();
 
 app.Run();

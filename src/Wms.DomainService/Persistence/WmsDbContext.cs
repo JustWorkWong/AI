@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Wms.DomainService.Approvals;
 using Wms.DomainService.Auth;
 using Wms.DomainService.Commands;
+using Wms.DomainService.Integration;
 using Wms.DomainService.Returns;
+using Wms.DomainService.Storage;
 
 namespace Wms.DomainService.Persistence;
 
@@ -31,6 +33,12 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
     public DbSet<ApprovalAction> ApprovalActions => Set<ApprovalAction>();
 
     public DbSet<CommandDeduplication> CommandDeduplications => Set<CommandDeduplication>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+
+    public DbSet<ReturnAttachment> ReturnAttachments => Set<ReturnAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -111,6 +119,27 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
         {
             entity.HasKey(x => x.IdempotencyKey);
             entity.Property(x => x.CommandName).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventType).HasMaxLength(128);
+            entity.Property(x => x.Status).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<InboxMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.MessageType).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<ReturnAttachment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ObjectKey).HasMaxLength(256);
+            entity.Property(x => x.ContentType).HasMaxLength(128);
+            entity.Property(x => x.FileName).HasMaxLength(256);
         });
     }
 }

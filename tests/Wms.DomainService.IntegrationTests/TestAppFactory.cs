@@ -9,7 +9,9 @@ namespace Wms.DomainService.IntegrationTests;
 
 public static class TestAppFactory
 {
-    public static async Task<WebApplicationFactory<Program>> CreateDomainServiceAsync(string connectionString)
+    public static async Task<WebApplicationFactory<Program>> CreateDomainServiceAsync(
+        string connectionString,
+        Action<IServiceCollection>? configureServices = null)
     {
         var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -19,6 +21,7 @@ public static class TestAppFactory
                 {
                     services.RemoveAll<DbContextOptions<WmsDbContext>>();
                     services.AddDbContext<WmsDbContext>(options => options.UseNpgsql(connectionString));
+                    configureServices?.Invoke(services);
                 });
             });
 
