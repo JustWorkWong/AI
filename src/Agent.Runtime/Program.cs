@@ -1,41 +1,60 @@
+using Microsoft.EntityFrameworkCore;
+using Agent.Runtime.Models;
+using Agent.Runtime.Observability;
+using Agent.Runtime.Persistence;
+using Wms.ServiceDefaults;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.AddWmsServiceDefaults();
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<AgentRuntimeDbContext>(options =>
+{
+    var connectionString =
+        builder.Configuration.GetConnectionString("aidb")
+        ?? builder.Configuration["ConnectionStrings:aidb"]
+        ?? "Host=localhost;Database=aidb;Username=postgres;Password=postgres";
+
+    options.UseNpgsql(connectionString);
+});
+
+builder.Services.AddHealthChecks();
+builder.Services.AddScoped<IModelGateway, ModelGateway>();
+builder.Services.AddScoped<IToolInvocationStore, EfToolInvocationStore>();
+builder.Services.AddSingleton<ConversationCompactor>();
+builder.Services.AddScoped<ToolLoggingMiddleware>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+app.MapGet("/healthz", () => Results.Ok("ok"));
 
-var summaries = new[]
+app.MapGet("/internal/runtime/failures/count", async (
+    AgentRuntimeDbContext db,
+    CancellationToken cancellationToken) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var count = await db.ToolInvocations
+        .CountAsync(x => x.Status == ToolInvocationStatus.Failed, cancellationToken);
 
-app.MapGet("/weatherforecast", () =>
+    return Results.Ok(new RuntimeFailureCountResponse(count));
+});
+
+app.MapGet("/internal/runtime/model-profiles/{profileCode}", (
+    string profileCode,
+    IModelGateway gateway) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var profile = gateway.GetProfile(profileCode);
+    return profile is null ? Results.NotFound() : Results.Ok(profile);
+});
 
+app.MapWmsDefaultEndpoints();
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public sealed record RuntimeFailureCountResponse(int Count);
+
+public partial class Program;
