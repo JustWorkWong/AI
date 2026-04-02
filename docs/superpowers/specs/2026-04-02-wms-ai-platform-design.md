@@ -86,6 +86,8 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - 用户认证
 - Token 签发
 - 推荐使用 `Keycloak`
+- 负责 `OIDC discovery`、`JWKS`、claims 映射规则、登录后用户同步触发
+- 对前端提供最小会话信息，不承载业务授权真相
 
 权限真相源规则：
 
@@ -93,12 +95,14 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - `wms-domain-service` 维护本地授权投影
 - 本地 `roles/permissions/role_permissions/user_roles` 是业务授权真相源
 - 登录后通过同步器把 `Keycloak user` 映射到本地 `users`
+- 用户首次登录后由 `auth-service` 发布 `user-synced` 事件，驱动本地投影创建
 
 #### `ops-bff`
 
 - 给前端提供聚合 API
 - 聚合业务查询、审批、trace 查看、workflow 发起
 - 隔离前端与内部服务
+- 代理 AG-UI/SSE 事件流，不让前端直接连内部 runtime
 
 #### `wms-domain-service`
 
@@ -108,6 +112,9 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - 质检单
 - 处置决策
 - 审批任务
+- 附件元数据
+- outbox 消息
+- inbox 去重
 - SOP 文档与步骤
 - SOP 检索索引元数据
 - 仓库、库区、库位、SKU
@@ -173,6 +180,7 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 
 - 退货单列表
 - 质检录入表单
+- 附件上传与预览
 - AI 处置建议卡片
 - 证据引用
 - 审批入口
@@ -193,6 +201,31 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - checkpoint 列表
 - 消息压缩前后视图
 - prompt/model/version 标签
+
+### 4.3 AG-UI Event Contract
+
+前端不直接消费内部对象，而是消费稳定事件流。
+
+事件类型最小集合：
+
+- `workflow.started`
+- `message.delta`
+- `tool.started`
+- `tool.completed`
+- `checkpoint.created`
+- `approval.requested`
+- `approval.completed`
+- `citation.updated`
+- `session.completed`
+- `session.failed`
+- `heartbeat`
+
+契约规则：
+
+- 每个事件都必须带 `session_id`、`workflow_instance_id`、`trace_id`
+- `tool.*` 事件必须带 `tool_name`
+- `citation.updated` 必须带 `source_id`、`version`、`step_code`
+- `heartbeat` 用于长连接保活，不更新业务状态
 
 #### `Admin`
 
@@ -228,6 +261,12 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - 处置建议引用来源只允许来自 `已发布 SOP` 与 `已结案历史案例`
 - 历史案例不是新真相源，而是由 `quality_inspections + disposition_decisions` 生成的只读投影视图
 - 无命中证据时只允许输出“需要人工复核”，不得生成具体处置结论
+
+#### Attachment Rule
+
+- 质检附件原文件存 `MinIO`
+- 业务库只保存附件元数据、对象键、内容类型、上传人、哈希值
+- 生成建议时只读取授权后的附件引用，不直接暴露对象存储地址
 
 #### Tools
 
@@ -431,6 +470,13 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - 业务更新采用本地事务 + outbox
 - 异步事件通过 `MassTransit` 分发
 - Agent runtime 不直接修改核心库存状态
+- 消费方维护 `inbox` 或等价去重表，避免重复处理
+
+### 7.4 Object Storage Rule
+
+- 原始附件存对象存储，数据库只存元数据
+- 下载通过受控签名 URL 或受控代理接口
+- 附件对象键必须可追踪到业务聚合根，但不能泄露内部目录结构
 
 ---
 
@@ -463,6 +509,8 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - `approval_tasks`
 - `approval_actions`
 - `command_deduplications`
+- `outbox_messages`
+- `inbox_messages`
 
 ### 8.4 SOP And Knowledge Domain
 
@@ -612,6 +660,7 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - `ConfigMap`: 服务地址、feature flags、模型 endpoint URL、非敏感配置
 - `Secret`: 数据库连接、百炼 key、MinIO key
 - `HPA`: 面向 `ops-bff`、`agent-runtime`
+- `Keycloak realm/client` 配置通过 `ConfigMap` 注入，client secret 走 `Secret`
 
 ---
 
@@ -652,6 +701,9 @@ Observability: OpenTelemetry -> Jaeger + Prometheus + Grafana
 - SOP 完成率
 - SOP 检索命中率
 - 无证据拒答率
+- outbox 积压数
+- SSE 在线连接数
+- 附件上传失败率
 
 ### 13.3 Logs
 

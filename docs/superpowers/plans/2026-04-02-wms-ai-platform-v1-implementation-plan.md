@@ -25,6 +25,7 @@
 - `d:\AI\src\Wms.AppHost\`: Aspire AppHost and deployment topology.
 - `d:\AI\src\Wms.ServiceDefaults\`: common OpenTelemetry, health checks, service discovery.
 - `d:\AI\src\Shared.Contracts\`: DTOs and integration contracts.
+- `d:\AI\src\Auth.Service\`: Keycloak/OIDC integration and user sync trigger.
 - `d:\AI\src\Gateway.Yarp\`: reverse proxy and north-south edge.
 - `d:\AI\src\Ops.Bff\`: frontend-facing aggregation API and AG-UI/SSE bridge.
 - `d:\AI\src\Wms.DomainService\`: single business truth service.
@@ -39,6 +40,7 @@
 - `d:\AI\tests\Wms.DomainService.UnitTests\`
 - `d:\AI\tests\Wms.DomainService.IntegrationTests\`
 - `d:\AI\tests\Agent.Runtime.Tests\`
+- `d:\AI\tests\Auth.Service.Tests\`
 - `d:\AI\tests\Ops.Bff.Tests\`
 - `d:\AI\tests\Architecture.Tests\`
 
@@ -68,6 +70,7 @@
 - Create: `d:\AI\src\Wms.AppHost\Wms.AppHost.csproj`
 - Create: `d:\AI\src\Wms.ServiceDefaults\Wms.ServiceDefaults.csproj`
 - Create: `d:\AI\src\Shared.Contracts\Shared.Contracts.csproj`
+- Create: `d:\AI\src\Auth.Service\Auth.Service.csproj`
 - Create: `d:\AI\src\Gateway.Yarp\Gateway.Yarp.csproj`
 - Create: `d:\AI\src\Ops.Bff\Ops.Bff.csproj`
 - Create: `d:\AI\src\Wms.DomainService\Wms.DomainService.csproj`
@@ -75,6 +78,7 @@
 - Create: `d:\AI\tests\Wms.DomainService.UnitTests\Wms.DomainService.UnitTests.csproj`
 - Create: `d:\AI\tests\Wms.DomainService.IntegrationTests\Wms.DomainService.IntegrationTests.csproj`
 - Create: `d:\AI\tests\Agent.Runtime.Tests\Agent.Runtime.Tests.csproj`
+- Create: `d:\AI\tests\Auth.Service.Tests\Auth.Service.Tests.csproj`
 - Create: `d:\AI\tests\Ops.Bff.Tests\Ops.Bff.Tests.csproj`
 - Create: `d:\AI\tests\Architecture.Tests\Architecture.Tests.csproj`
 
@@ -85,6 +89,7 @@ dotnet new sln -n WmsAiPlatform
 dotnet new aspire-apphost -n Wms.AppHost -o src/Wms.AppHost --framework net10.0
 dotnet new aspire-servicedefaults -n Wms.ServiceDefaults -o src/Wms.ServiceDefaults --framework net10.0
 dotnet new classlib -n Shared.Contracts -o src/Shared.Contracts --framework net10.0
+dotnet new webapi -n Auth.Service -o src/Auth.Service --framework net10.0 --use-controllers false
 dotnet new webapi -n Gateway.Yarp -o src/Gateway.Yarp --framework net10.0 --use-controllers false
 dotnet new webapi -n Ops.Bff -o src/Ops.Bff --framework net10.0 --use-controllers false
 dotnet new webapi -n Wms.DomainService -o src/Wms.DomainService --framework net10.0 --use-controllers false
@@ -92,6 +97,7 @@ dotnet new webapi -n Agent.Runtime -o src/Agent.Runtime --framework net10.0 --us
 dotnet new xunit -n Wms.DomainService.UnitTests -o tests/Wms.DomainService.UnitTests
 dotnet new xunit -n Wms.DomainService.IntegrationTests -o tests/Wms.DomainService.IntegrationTests
 dotnet new xunit -n Agent.Runtime.Tests -o tests/Agent.Runtime.Tests
+dotnet new xunit -n Auth.Service.Tests -o tests/Auth.Service.Tests
 dotnet new xunit -n Ops.Bff.Tests -o tests/Ops.Bff.Tests
 dotnet new xunit -n Architecture.Tests -o tests/Architecture.Tests
 ```
@@ -102,6 +108,7 @@ dotnet new xunit -n Architecture.Tests -o tests/Architecture.Tests
 dotnet sln .\WmsAiPlatform.sln add .\src\Wms.AppHost\Wms.AppHost.csproj
 dotnet sln .\WmsAiPlatform.sln add .\src\Wms.ServiceDefaults\Wms.ServiceDefaults.csproj
 dotnet sln .\WmsAiPlatform.sln add .\src\Shared.Contracts\Shared.Contracts.csproj
+dotnet sln .\WmsAiPlatform.sln add .\src\Auth.Service\Auth.Service.csproj
 dotnet sln .\WmsAiPlatform.sln add .\src\Gateway.Yarp\Gateway.Yarp.csproj
 dotnet sln .\WmsAiPlatform.sln add .\src\Ops.Bff\Ops.Bff.csproj
 dotnet sln .\WmsAiPlatform.sln add .\src\Wms.DomainService\Wms.DomainService.csproj
@@ -109,6 +116,7 @@ dotnet sln .\WmsAiPlatform.sln add .\src\Agent.Runtime\Agent.Runtime.csproj
 dotnet sln .\WmsAiPlatform.sln add .\tests\Wms.DomainService.UnitTests\Wms.DomainService.UnitTests.csproj
 dotnet sln .\WmsAiPlatform.sln add .\tests\Wms.DomainService.IntegrationTests\Wms.DomainService.IntegrationTests.csproj
 dotnet sln .\WmsAiPlatform.sln add .\tests\Agent.Runtime.Tests\Agent.Runtime.Tests.csproj
+dotnet sln .\WmsAiPlatform.sln add .\tests\Auth.Service.Tests\Auth.Service.Tests.csproj
 dotnet sln .\WmsAiPlatform.sln add .\tests\Ops.Bff.Tests\Ops.Bff.Tests.csproj
 dotnet sln .\WmsAiPlatform.sln add .\tests\Architecture.Tests\Architecture.Tests.csproj
 ```
@@ -125,6 +133,8 @@ dotnet sln .\WmsAiPlatform.sln add .\tests\Architecture.Tests\Architecture.Tests
     <PackageVersion Include="Aspire.Hosting.Redis" Version="9.*" />
     <PackageVersion Include="FluentAssertions" Version="7.*" />
     <PackageVersion Include="MassTransit.RabbitMQ" Version="8.*" />
+    <PackageVersion Include="Minio" Version="6.*" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0-*" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0-*" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0-*" />
     <PackageVersion Include="Microsoft.Extensions.AI" Version="9.*" />
@@ -233,6 +243,7 @@ Expected: FAIL because package reference is missing.
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Auth.Service\Auth.Service.csproj" />
     <ProjectReference Include="..\Gateway.Yarp\Gateway.Yarp.csproj" />
     <ProjectReference Include="..\Ops.Bff\Ops.Bff.csproj" />
     <ProjectReference Include="..\Wms.DomainService\Wms.DomainService.csproj" />
@@ -271,6 +282,9 @@ var domain = builder.AddProject<Projects.Wms_DomainService>("wms-domain-service"
     .WithReference(rabbit)
     .WithReference(minio);
 
+var auth = builder.AddProject<Projects.Auth_Service>("auth-service")
+    .WithReference(domain);
+
 var runtime = builder.AddProject<Projects.Agent_Runtime>("agent-runtime")
     .WithReference(aiDb)
     .WithReference(redis)
@@ -282,6 +296,7 @@ var bff = builder.AddProject<Projects.Ops_Bff>("ops-bff")
     .WithReference(runtime);
 
 builder.AddProject<Projects.Gateway_Yarp>("gateway-yarp")
+    .WithReference(auth)
     .WithReference(bff)
     .WithReference(domain)
     .WithReference(runtime);
@@ -387,6 +402,118 @@ Expected: `artifacts/k8s/` contains Helm chart files generated by Aspire.
 ```bash
 git add src/Wms.AppHost src/Wms.ServiceDefaults build deploy tests/Architecture.Tests
 git commit -m "feat: add aspire apphost and kubernetes publish path"
+```
+
+---
+
+## Task 2A: Add Auth Service And Keycloak Integration
+
+**Files:**
+- Create: `d:\AI\src\Auth.Service\Program.cs`
+- Create: `d:\AI\src\Auth.Service\Options\KeycloakOptions.cs`
+- Create: `d:\AI\src\Auth.Service\Clients\DomainUserSyncClient.cs`
+- Create: `d:\AI\src\Auth.Service\Endpoints\SessionEndpoints.cs`
+- Create: `d:\AI\src\Auth.Service\Endpoints\SyncEndpoints.cs`
+- Test: `d:\AI\tests\Auth.Service.Tests\SessionEndpointsTests.cs`
+
+- [ ] **Step 1: Write the failing auth test**
+
+```csharp
+public sealed class SessionEndpointsTests
+{
+    [Fact]
+    public async Task Config_endpoint_should_return_oidc_settings()
+    {
+        using var app = new WebApplicationFactory<Program>();
+        var client = app.CreateClient();
+
+        var response = await client.GetAsync("/auth/config");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+}
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `dotnet test .\tests\Auth.Service.Tests\Auth.Service.Tests.csproj --filter Config_endpoint_should_return_oidc_settings`
+
+Expected: FAIL
+
+- [ ] **Step 3: Implement the auth service skeleton**
+
+```csharp
+// d:\AI\src\Auth.Service\Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddWmsServiceDefaults();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["Keycloak:Authority"];
+        options.Audience = builder.Configuration["Keycloak:Audience"];
+        options.RequireHttpsMetadata = true;
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddHttpClient<DomainUserSyncClient>(client =>
+{
+    client.BaseAddress = new Uri("http://wms-domain-service");
+});
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGet("/auth/config", (IConfiguration configuration) => Results.Ok(new
+{
+    authority = configuration["Keycloak:Authority"],
+    audience = configuration["Keycloak:Audience"]
+}));
+
+app.MapPost("/auth/sync", async (
+    ClaimsPrincipal user,
+    DomainUserSyncClient syncClient,
+    CancellationToken cancellationToken) =>
+{
+    await syncClient.SyncAsync(user, cancellationToken);
+    return Results.Accepted();
+}).RequireAuthorization();
+
+app.Run();
+
+public partial class Program;
+```
+
+```csharp
+// d:\AI\src\Auth.Service\Clients\DomainUserSyncClient.cs
+public sealed class DomainUserSyncClient(HttpClient httpClient)
+{
+    public async Task SyncAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        var payload = new SyncUserRequest(
+            user.FindFirstValue("sub") ?? string.Empty,
+            user.FindFirstValue("preferred_username") ?? string.Empty,
+            user.FindFirstValue("name") ?? string.Empty);
+
+        await httpClient.PostAsJsonAsync("/internal/auth/sync", payload, cancellationToken);
+    }
+}
+```
+
+- [ ] **Step 4: Run auth tests**
+
+Run: `dotnet test .\tests\Auth.Service.Tests\Auth.Service.Tests.csproj`
+
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/Auth.Service tests/Auth.Service.Tests
+git commit -m "feat: add auth service and keycloak integration"
 ```
 
 ---
@@ -998,6 +1125,168 @@ Expected: PASS
 ```bash
 git add src/Wms.DomainService tests/Wms.DomainService.UnitTests tests/Wms.DomainService.IntegrationTests
 git commit -m "feat: add returns approval and idempotent command handling"
+```
+
+---
+
+## Task 5A: Add Outbox Eventing And Attachment Storage
+
+**Files:**
+- Create: `d:\AI\src\Wms.DomainService\Integration\OutboxMessage.cs`
+- Create: `d:\AI\src\Wms.DomainService\Integration\InboxMessage.cs`
+- Create: `d:\AI\src\Wms.DomainService\Integration\OutboxDispatcher.cs`
+- Create: `d:\AI\src\Wms.DomainService\Storage\ReturnAttachment.cs`
+- Create: `d:\AI\src\Wms.DomainService\Storage\IObjectStorage.cs`
+- Create: `d:\AI\src\Wms.DomainService\Storage\MinioObjectStorage.cs`
+- Create: `d:\AI\src\Wms.DomainService\Endpoints\AttachmentEndpoints.cs`
+- Test: `d:\AI\tests\Wms.DomainService.UnitTests\OutboxMessageTests.cs`
+- Test: `d:\AI\tests\Wms.DomainService.IntegrationTests\AttachmentEndpointsTests.cs`
+
+- [ ] **Step 1: Write the failing outbox test**
+
+```csharp
+public sealed class OutboxMessageTests
+{
+    [Fact]
+    public void New_outbox_message_should_start_as_pending()
+    {
+        var message = OutboxMessage.Create("user-synced", "{}");
+
+        message.Status.Should().Be("Pending");
+    }
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `dotnet test .\tests\Wms.DomainService.UnitTests\Wms.DomainService.UnitTests.csproj --filter New_outbox_message_should_start_as_pending`
+
+Expected: FAIL
+
+- [ ] **Step 3: Implement outbox and object storage abstractions**
+
+```csharp
+// d:\AI\src\Wms.DomainService\Integration\OutboxMessage.cs
+public sealed class OutboxMessage
+{
+    public Guid Id { get; init; }
+    public string EventType { get; init; } = null!;
+    public string PayloadJson { get; init; } = null!;
+    public string Status { get; private set; } = "Pending";
+
+    public static OutboxMessage Create(string eventType, string payloadJson) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            EventType = eventType,
+            PayloadJson = payloadJson
+        };
+}
+```
+
+```csharp
+// d:\AI\src\Wms.DomainService\Storage\IObjectStorage.cs
+public interface IObjectStorage
+{
+    Task<string> PutAsync(string key, Stream content, string contentType, CancellationToken cancellationToken);
+}
+```
+
+```csharp
+// d:\AI\src\Wms.DomainService\Storage\MinioObjectStorage.cs
+public sealed class MinioObjectStorage(IMinioClient client) : IObjectStorage
+{
+    public async Task<string> PutAsync(string key, Stream content, string contentType, CancellationToken cancellationToken)
+    {
+        await client.PutObjectAsync(new PutObjectArgs()
+            .WithBucket("return-attachments")
+            .WithObject(key)
+            .WithStreamData(content)
+            .WithObjectSize(content.Length)
+            .WithContentType(contentType), cancellationToken);
+
+        return key;
+    }
+}
+```
+
+- [ ] **Step 4: Add attachment upload endpoint and outbox dispatch**
+
+```csharp
+// d:\AI\src\Wms.DomainService\Endpoints\AttachmentEndpoints.cs
+public static class AttachmentEndpoints
+{
+    public static IEndpointRouteBuilder MapAttachmentEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapPost("/internal/returns/{returnOrderId:guid}/attachments", async (
+            Guid returnOrderId,
+            HttpRequest request,
+            IObjectStorage objectStorage,
+            WmsDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var form = await request.ReadFormAsync(cancellationToken);
+            var file = form.Files[0];
+            await using var stream = file.OpenReadStream();
+
+            var objectKey = $"returns/{returnOrderId}/{Guid.NewGuid()}-{file.FileName}";
+            await objectStorage.PutAsync(objectKey, stream, file.ContentType, cancellationToken);
+
+            db.Add(new ReturnAttachment
+            {
+                Id = Guid.NewGuid(),
+                ReturnOrderId = returnOrderId,
+                ObjectKey = objectKey,
+                ContentType = file.ContentType,
+                FileName = file.FileName
+            });
+
+            db.Add(OutboxMessage.Create("return-attachment-uploaded", $$"""{"returnOrderId":"{{returnOrderId}}","objectKey":"{{objectKey}}"}"""));
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Accepted();
+        });
+
+        return endpoints;
+    }
+}
+```
+
+- [ ] **Step 5: Add the attachment integration test**
+
+```csharp
+public sealed class AttachmentEndpointsTests : IClassFixture<PostgresFixture>
+{
+    [Fact]
+    public async Task Upload_should_store_metadata_and_enqueue_outbox_message()
+    {
+        var app = await TestAppFactory.CreateDomainServiceAsync();
+        var client = app.CreateClient();
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(new MemoryStream("abc"u8.ToArray())), "file", "photo.jpg");
+
+        var response = await client.PostAsync($"/internal/returns/{Guid.NewGuid()}/attachments", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+}
+```
+
+- [ ] **Step 6: Run tests**
+
+Run: `dotnet test .\tests\Wms.DomainService.UnitTests\Wms.DomainService.UnitTests.csproj --filter New_outbox_message_should_start_as_pending`
+
+Expected: PASS
+
+Run: `dotnet test .\tests\Wms.DomainService.IntegrationTests\Wms.DomainService.IntegrationTests.csproj --filter Upload_should_store_metadata_and_enqueue_outbox_message`
+
+Expected: PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/Wms.DomainService tests/Wms.DomainService.UnitTests tests/Wms.DomainService.IntegrationTests
+git commit -m "feat: add outbox eventing and attachment storage"
 ```
 
 ---
@@ -1790,6 +2079,161 @@ git commit -m "feat: add bff workbench endpoints and vue frontend"
 
 ---
 
+## Task 9A: Add AG-UI Event Contract And SSE Bridging
+
+**Files:**
+- Create: `d:\AI\src\Shared.Contracts\Realtime\AgUiEvents.cs`
+- Create: `d:\AI\src\Agent.Runtime\Streaming\SseEventWriter.cs`
+- Create: `d:\AI\src\Agent.Runtime\Streaming\AgUiEventMapper.cs`
+- Modify: `d:\AI\src\Agent.Runtime\Program.cs`
+- Modify: `d:\AI\src\Ops.Bff\Clients\AgentRuntimeClient.cs`
+- Modify: `d:\AI\web\wms-web\src\lib\agui.ts`
+- Test: `d:\AI\tests\Agent.Runtime.Tests\AgUiEventMapperTests.cs`
+- Test: `d:\AI\tests\Ops.Bff.Tests\SseBridgeTests.cs`
+
+- [ ] **Step 1: Write the failing AG-UI mapping test**
+
+```csharp
+public sealed class AgUiEventMapperTests
+{
+    [Fact]
+    public void Mapper_should_convert_tool_start_to_contract_event()
+    {
+        var evt = AgUiEventMapper.MapToolStarted("SearchSopTool", "trace-123", Guid.NewGuid());
+
+        evt.Type.Should().Be("tool.started");
+    }
+}
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `dotnet test .\tests\Agent.Runtime.Tests\Agent.Runtime.Tests.csproj --filter Mapper_should_convert_tool_start_to_contract_event`
+
+Expected: FAIL
+
+- [ ] **Step 3: Create the shared event contract**
+
+```csharp
+// d:\AI\src\Shared.Contracts\Realtime\AgUiEvents.cs
+namespace Shared.Contracts.Realtime;
+
+public sealed record AgUiEvent(
+    string Type,
+    string TraceId,
+    Guid WorkflowInstanceId,
+    Guid SessionId,
+    object Payload);
+```
+
+- [ ] **Step 4: Add runtime event mapping and SSE writer**
+
+```csharp
+// d:\AI\src\Agent.Runtime\Streaming\AgUiEventMapper.cs
+public static class AgUiEventMapper
+{
+    public static AgUiEvent MapToolStarted(string toolName, string traceId, Guid workflowInstanceId) =>
+        new("tool.started", traceId, workflowInstanceId, Guid.Empty, new { tool_name = toolName });
+}
+```
+
+```csharp
+// d:\AI\src\Agent.Runtime\Streaming\SseEventWriter.cs
+public sealed class SseEventWriter
+{
+    public async Task WriteAsync(HttpResponse response, AgUiEvent evt, CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(evt);
+        await response.WriteAsync($"event: {evt.Type}\n", cancellationToken);
+        await response.WriteAsync($"data: {json}\n\n", cancellationToken);
+        await response.Body.FlushAsync(cancellationToken);
+    }
+}
+```
+
+```csharp
+// d:\AI\src\Agent.Runtime\Program.cs
+app.MapGet("/internal/runtime/sop/{sessionId:guid}/events", async (
+    Guid sessionId,
+    HttpResponse response,
+    SseEventWriter writer,
+    CancellationToken cancellationToken) =>
+{
+    response.Headers.ContentType = "text/event-stream";
+    await writer.WriteAsync(response,
+        new AgUiEvent("heartbeat", "trace-demo", Guid.Empty, sessionId, new { }),
+        cancellationToken);
+});
+```
+
+- [ ] **Step 5: Implement the BFF bridge and frontend subscriber**
+
+```csharp
+// d:\AI\src\Ops.Bff\Clients\AgentRuntimeClient.cs
+public async Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken)
+{
+    using var upstream = await httpClient.GetAsync(
+        $"/internal/runtime/sop/{sessionId}/events",
+        HttpCompletionOption.ResponseHeadersRead,
+        cancellationToken);
+
+    await upstream.Content.CopyToAsync(response.Body, cancellationToken);
+}
+```
+
+```ts
+// d:\AI\web\wms-web\src\lib\agui.ts
+export interface AgUiEvent {
+  type: string;
+  traceId: string;
+  workflowInstanceId: string;
+  sessionId: string;
+  payload: unknown;
+}
+
+export function subscribeToSopSession(sessionId: string, onEvent: (event: AgUiEvent) => void) {
+  const source = new EventSource(`/api/sop/sessions/${sessionId}/events`);
+  const eventTypes = [
+    "workflow.started",
+    "message.delta",
+    "tool.started",
+    "tool.completed",
+    "checkpoint.created",
+    "approval.requested",
+    "approval.completed",
+    "citation.updated",
+    "session.completed",
+    "session.failed",
+    "heartbeat"
+  ];
+
+  for (const eventType of eventTypes) {
+    source.addEventListener(eventType, (evt) => onEvent(JSON.parse((evt as MessageEvent).data) as AgUiEvent));
+  }
+
+  return source;
+}
+```
+
+- [ ] **Step 6: Run tests**
+
+Run: `dotnet test .\tests\Agent.Runtime.Tests\Agent.Runtime.Tests.csproj --filter Mapper_should_convert_tool_start_to_contract_event`
+
+Expected: PASS
+
+Run: `dotnet test .\tests\Ops.Bff.Tests\Ops.Bff.Tests.csproj --filter SseBridgeTests`
+
+Expected: PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/Shared.Contracts src/Agent.Runtime src/Ops.Bff web/wms-web tests/Agent.Runtime.Tests tests/Ops.Bff.Tests
+git commit -m "feat: add ag-ui event contract and sse bridge"
+```
+
+---
+
 ## Task 10: Add End-To-End Verification, CI, And Publish Workflow
 
 **Files:**
@@ -1917,10 +2361,13 @@ git commit -m "chore: add ci and aspire publish workflow"
 - `退货质检与处置`: covered by Task 5 and Task 8.
 - `SOP 辅助执行`: covered by Task 6 and Task 8.
 - `SOP RAG`: covered by Task 6 and Task 8.
+- `auth-service / Keycloak integration`: covered by Task 2A.
 - `审批归属到 wms-domain-service`: covered by Task 5 and Task 8.
+- `outbox + MassTransit consistency`: covered by Task 5A.
+- `MinIO attachments`: covered by Task 5A.
 - `workflow checkpoint`: covered by Task 7 and Task 8.
 - `消息压缩`: implementation entry in Task 7; optimization pass stays for later iteration after V1.
-- `Vue + AG-UI`: Vue app and BFF event bridge start in Task 9.
+- `Vue + AG-UI`: Vue app starts in Task 9, protocol bridge is completed in Task 9A.
 - `Kubernetes manifests generated by Aspire`: covered by Task 2 and Task 10.
 
 ## Execution Notes
@@ -1928,4 +2375,5 @@ git commit -m "chore: add ci and aspire publish workflow"
 - V1 does **not** handwrite Kubernetes workload manifests.
 - Use `Aspire AppHost + AddKubernetesEnvironment + aspire publish` to generate Helm artifacts.
 - Keep only values overlays in `deploy/values/`.
+- Execute `Task 2A`, `Task 5A`, and `Task 9A` as first-class tasks, not optional follow-ups.
 - Cluster add-ons such as `ingress-nginx`, `cert-manager`, and external secret operators remain outside this application chart.
