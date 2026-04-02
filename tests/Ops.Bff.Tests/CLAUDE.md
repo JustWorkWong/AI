@@ -2,6 +2,7 @@
 
 ## 文件
 - `Ops.Bff.Tests.csproj`: BFF 测试项目。
+- `TestHost/`: BFF 测试共享宿主，收口 `WebApplicationFactory` 样板。
 - `TestDoubles/`: BFF 端点测试共享替身，收敛重复接口实现。
 - `DashboardEndpointsTests.cs`: 校验首页聚合接口不会退化。
 - `DomainServiceClientTests.cs`: 校验下游 404 不会被 BFF 放大成 500。

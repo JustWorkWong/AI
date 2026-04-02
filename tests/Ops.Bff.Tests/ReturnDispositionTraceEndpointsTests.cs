@@ -1,10 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Ops.Bff.Clients;
+using Ops.Bff.Tests.TestHost;
 using Ops.Bff.Tests.TestDoubles;
 using Shared.Contracts.Returns;
 
@@ -15,30 +11,21 @@ public sealed class ReturnDispositionTraceEndpointsTests
     [Fact]
     public async Task Get_trace_should_return_runtime_execution_trace()
     {
-        await using var app = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
+        await using var app = new BffTestApplicationFactory(
+            new StubDomainServiceClient(),
+            new StubAgentRuntimeClient
             {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IDomainServiceClient>();
-                    services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient
-                    {
-                        GetDispositionTraceAsyncHandler = static (workflowInstanceId, _) => Task.FromResult<DispositionExecutionTraceDto?>(new DispositionExecutionTraceDto(
-                            workflowInstanceId,
-                            "return-disposition-execute",
-                            "WaitingApproval",
-                            Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                            [
-                                new ToolInvocationDto(Guid.NewGuid(), "GetReturnOrderTool", "Completed", "trace-a", 12, "{}", "order", null)
-                            ],
-                            [
-                                new WorkflowCheckpointDto(Guid.NewGuid(), 1, "approval", "{\"approvalReferenceId\":\"44444444-4444-4444-4444-444444444444\"}")
-                            ]))
-                    });
-                });
+                GetDispositionTraceAsyncHandler = static (workflowInstanceId, _) => Task.FromResult<DispositionExecutionTraceDto?>(new DispositionExecutionTraceDto(
+                    workflowInstanceId,
+                    "return-disposition-execute",
+                    "WaitingApproval",
+                    Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                    [
+                        new ToolInvocationDto(Guid.NewGuid(), "GetReturnOrderTool", "Completed", "trace-a", 12, "{}", "order", null)
+                    ],
+                    [
+                        new WorkflowCheckpointDto(Guid.NewGuid(), 1, "approval", "{\"approvalReferenceId\":\"44444444-4444-4444-4444-444444444444\"}")
+                    ]))
             });
 
         var client = app.CreateClient();

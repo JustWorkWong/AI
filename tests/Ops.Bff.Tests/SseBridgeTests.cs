@@ -1,11 +1,7 @@
 using System.Net;
 using System.Text;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Ops.Bff.Clients;
+using Ops.Bff.Tests.TestHost;
 using Ops.Bff.Tests.TestDoubles;
 
 namespace Ops.Bff.Tests;
@@ -15,28 +11,19 @@ public sealed class SseBridgeTests
     [Fact]
     public async Task Get_sop_events_should_bridge_upstream_sse_payload()
     {
-        await using var app = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
+        await using var app = new BffTestApplicationFactory(
+            new StubDomainServiceClient(),
+            new StubAgentRuntimeClient
             {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureServices(services =>
+                ProxySseAsyncHandler = async (sessionId, response, cancellationToken) =>
                 {
-                    services.RemoveAll<IDomainServiceClient>();
-                    services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient
-                    {
-                        ProxySseAsyncHandler = async (sessionId, response, cancellationToken) =>
-                        {
-                            response.StatusCode = StatusCodes.Status200OK;
-                            response.ContentType = "text/event-stream";
+                    response.StatusCode = StatusCodes.Status200OK;
+                    response.ContentType = "text/event-stream";
 
-                            await response.Body.WriteAsync(
-                                Encoding.UTF8.GetBytes($"event: heartbeat\ndata: {{\"sessionId\":\"{sessionId}\"}}\n\n"),
-                                cancellationToken);
-                        }
-                    });
-                });
+                    await response.Body.WriteAsync(
+                        Encoding.UTF8.GetBytes($"event: heartbeat\ndata: {{\"sessionId\":\"{sessionId}\"}}\n\n"),
+                        cancellationToken);
+                }
             });
 
         var client = app.CreateClient();

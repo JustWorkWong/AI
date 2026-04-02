@@ -1,11 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Ops.Bff.Clients;
+using Ops.Bff.Tests.TestHost;
 using Ops.Bff.Tests.TestDoubles;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Common;
@@ -21,35 +16,26 @@ public sealed class ReturnWorkbenchEndpointsTests
     {
         var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        await using var app = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
+        await using var app = new BffTestApplicationFactory(
+            new StubDomainServiceClient
             {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IDomainServiceClient>();
-                    services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient
-                    {
-                        PendingApprovals = 3,
-                        ReturnOrder = new ReturnOrderDto(
-                            returnOrderId,
-                            "RMA-001",
-                            "Broken",
-                            "PendingInspection",
-                            "Damaged shell")
-                    });
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient
-                    {
-                        FailureCount = 1,
-                        GetDispositionSuggestionAsyncHandler = static (returnOrderId, _) => Task.FromResult<DispositionSuggestionDto?>(new DispositionSuggestionDto(
-                            returnOrderId,
-                            "Scrap",
-                            "High",
-                            [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
-                            "Pending"))
-                    });
-                });
+                PendingApprovals = 3,
+                ReturnOrder = new ReturnOrderDto(
+                    returnOrderId,
+                    "RMA-001",
+                    "Broken",
+                    "PendingInspection",
+                    "Damaged shell")
+            },
+            new StubAgentRuntimeClient
+            {
+                FailureCount = 1,
+                GetDispositionSuggestionAsyncHandler = static (returnOrderId, _) => Task.FromResult<DispositionSuggestionDto?>(new DispositionSuggestionDto(
+                    returnOrderId,
+                    "Scrap",
+                    "High",
+                    [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
+                    "Pending"))
             });
 
         var client = app.CreateClient();
@@ -69,26 +55,17 @@ public sealed class ReturnWorkbenchEndpointsTests
     {
         var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        await using var app = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
+        await using var app = new BffTestApplicationFactory(
+            new StubDomainServiceClient
             {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IDomainServiceClient>();
-                    services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient
-                    {
-                        ReturnOrder = new ReturnOrderDto(
-                            returnOrderId,
-                            "RMA-001",
-                            "Broken",
-                            "PendingInspection",
-                            "Damaged shell")
-                    });
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient());
-                });
-            });
+                ReturnOrder = new ReturnOrderDto(
+                    returnOrderId,
+                    "RMA-001",
+                    "Broken",
+                    "PendingInspection",
+                    "Damaged shell")
+            },
+            new StubAgentRuntimeClient());
 
         var client = app.CreateClient();
 

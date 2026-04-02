@@ -1,10 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Ops.Bff.Clients;
+using Ops.Bff.Tests.TestHost;
 using Ops.Bff.Tests.TestDoubles;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
@@ -16,24 +12,15 @@ public sealed class ReturnDispositionApprovalEndpointsTests
     [Fact]
     public async Task Post_approval_should_return_completed_runtime_result()
     {
-        await using var app = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
+        await using var app = new BffTestApplicationFactory(
+            new StubDomainServiceClient(),
+            new StubAgentRuntimeClient
             {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IDomainServiceClient>();
-                    services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient
-                    {
-                        DecideDispositionApprovalAsyncHandler = static (workflowInstanceId, _, _) => Task.FromResult<DispositionExecutionResultDto?>(new DispositionExecutionResultDto(
-                            workflowInstanceId,
-                            "Completed",
-                            Guid.Parse("77777777-7777-7777-7777-777777777777"),
-                            "Scrap"))
-                    });
-                });
+                DecideDispositionApprovalAsyncHandler = static (workflowInstanceId, _, _) => Task.FromResult<DispositionExecutionResultDto?>(new DispositionExecutionResultDto(
+                    workflowInstanceId,
+                    "Completed",
+                    Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                    "Scrap"))
             });
 
         var client = app.CreateClient();
