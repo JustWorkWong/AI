@@ -71,7 +71,7 @@ public static class ApprovalEndpoints
             {
                 return Program.CreateProblemResult(
                     httpContext,
-                    StatusCodes.Status400BadRequest,
+                    StatusCodes.Status422UnprocessableEntity,
                     "Unsupported approval action",
                     "Unsupported approval action.");
             }

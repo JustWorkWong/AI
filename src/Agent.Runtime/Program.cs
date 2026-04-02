@@ -85,94 +85,13 @@ app.MapGet("/internal/runtime/model-profiles/{profileCode}", (
         : Results.Ok(profile);
 });
 
-app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", async (
-    Guid returnOrderId,
-    HttpContext httpContext,
-    ReturnDispositionAdvisor advisor,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var suggestion = await advisor.GetSuggestionAsync(returnOrderId, cancellationToken);
-        return Results.Ok(suggestion);
-    }
-    catch (InvalidOperationException)
-    {
-        return Program.CreateProblemResult(
-            httpContext,
-            StatusCodes.Status404NotFound,
-            "Disposition suggestion not found",
-            $"Return order '{returnOrderId}' does not exist.");
-    }
-});
+app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", Program.HandleDispositionSuggestion);
 
-app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", async (
-    Guid returnOrderId,
-    HttpContext httpContext,
-    ExecuteDispositionRequest request,
-    ReturnDispositionExecutor executor,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var result = await executor.ExecuteAsync(returnOrderId, request, cancellationToken);
-        return Results.Ok(result);
-    }
-    catch (InvalidOperationException)
-    {
-        return Program.CreateProblemResult(
-            httpContext,
-            StatusCodes.Status404NotFound,
-            "Disposition execution not found",
-            $"Return order '{returnOrderId}' does not exist.");
-    }
-});
+app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", Program.HandleDispositionExecution);
 
-app.MapPost("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}/approval", async (
-    Guid workflowInstanceId,
-    HttpContext httpContext,
-    ApprovalDecisionRequest request,
-    ReturnDispositionApprovalService service,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var result = await service.DecideAsync(workflowInstanceId, request, cancellationToken);
-        return Results.Ok(result);
-    }
-    catch (ArgumentException ex)
-    {
-        return Program.CreateProblemResult(
-            httpContext,
-            StatusCodes.Status400BadRequest,
-            "Unsupported approval action",
-            ex.Message);
-    }
-    catch (InvalidOperationException)
-    {
-        return Program.CreateProblemResult(
-            httpContext,
-            StatusCodes.Status404NotFound,
-            "Approval decision not found",
-            $"Workflow instance '{workflowInstanceId}' does not exist.");
-    }
-});
+app.MapPost("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}/approval", Program.HandleDispositionApproval);
 
-app.MapGet("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}", async (
-    Guid workflowInstanceId,
-    HttpContext httpContext,
-    ReturnDispositionTraceReader reader,
-    CancellationToken cancellationToken) =>
-{
-    var result = await reader.GetTraceAsync(workflowInstanceId, cancellationToken);
-    return result is null
-        ? Program.CreateProblemResult(
-            httpContext,
-            StatusCodes.Status404NotFound,
-            "Disposition trace not found",
-            $"Workflow instance '{workflowInstanceId}' does not exist.")
-        : Results.Ok(result);
-});
+app.MapGet("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}", Program.HandleDispositionTrace);
 
 app.MapPost("/internal/runtime/sop/{sessionId:guid}/steps", async (
     Guid sessionId,
@@ -201,6 +120,103 @@ public sealed record RuntimeFailureCountResponse(int Count);
 
 public partial class Program
 {
+    public static async Task<IResult> HandleDispositionSuggestion(
+        Guid returnOrderId,
+        HttpContext httpContext,
+        ReturnDispositionAdvisor advisor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var suggestion = await advisor.GetSuggestionAsync(returnOrderId, cancellationToken);
+            return Results.Ok(suggestion);
+        }
+        catch (InvalidOperationException)
+        {
+            return CreateProblemResult(
+                httpContext,
+                StatusCodes.Status404NotFound,
+                "Disposition suggestion not found",
+                $"Return order '{returnOrderId}' does not exist.");
+        }
+    }
+
+    public static async Task<IResult> HandleDispositionExecution(
+        Guid returnOrderId,
+        HttpContext httpContext,
+        ExecuteDispositionRequest request,
+        ReturnDispositionExecutor executor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await executor.ExecuteAsync(returnOrderId, request, cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (InvalidOperationException)
+        {
+            return CreateProblemResult(
+                httpContext,
+                StatusCodes.Status404NotFound,
+                "Disposition execution not found",
+                $"Return order '{returnOrderId}' does not exist.");
+        }
+    }
+
+    public static async Task<IResult> HandleDispositionApproval(
+        Guid workflowInstanceId,
+        HttpContext httpContext,
+        ApprovalDecisionRequest request,
+        ReturnDispositionApprovalService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.DecideAsync(workflowInstanceId, request, cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return CreateProblemResult(
+                httpContext,
+                StatusCodes.Status422UnprocessableEntity,
+                "Unsupported approval action",
+                ex.Message);
+        }
+        catch (WorkflowNotFoundException)
+        {
+            return CreateProblemResult(
+                httpContext,
+                StatusCodes.Status404NotFound,
+                "Approval decision not found",
+                $"Workflow instance '{workflowInstanceId}' does not exist.");
+        }
+        catch (WorkflowConflictException ex)
+        {
+            return CreateProblemResult(
+                httpContext,
+                StatusCodes.Status409Conflict,
+                "Approval decision conflict",
+                ex.Message);
+        }
+    }
+
+    public static async Task<IResult> HandleDispositionTrace(
+        Guid workflowInstanceId,
+        HttpContext httpContext,
+        ReturnDispositionTraceReader reader,
+        CancellationToken cancellationToken)
+    {
+        var result = await reader.GetTraceAsync(workflowInstanceId, cancellationToken);
+        return result is null
+            ? CreateProblemResult(
+                httpContext,
+                StatusCodes.Status404NotFound,
+                "Disposition trace not found",
+                $"Workflow instance '{workflowInstanceId}' does not exist.")
+            : Results.Ok(result);
+    }
+
     public static IResult CreateProblemResult(
         HttpContext httpContext,
         int statusCode,

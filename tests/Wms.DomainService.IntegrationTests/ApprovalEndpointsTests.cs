@@ -64,13 +64,13 @@ public sealed class ApprovalEndpointsTests : IClassFixture<PostgresFixture>
             $"/internal/approvals/{approvalTaskId}/actions",
             new ApprovalDecisionRequest("Maybe", "manager-1"));
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
 
         var json = await response.Content.ReadAsStringAsync();
         using var document = JsonDocument.Parse(json);
 
-        Assert.Equal(400, document.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(422, document.RootElement.GetProperty("status").GetInt32());
         Assert.False(document.RootElement.TryGetProperty("error", out _));
         Assert.True(document.RootElement.TryGetProperty("traceId", out var traceId));
         Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));

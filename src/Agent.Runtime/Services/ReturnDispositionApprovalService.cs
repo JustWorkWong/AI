@@ -33,27 +33,35 @@ public sealed class ReturnDispositionApprovalService(
         var workflow = await dbContext.WorkflowInstances.SingleOrDefaultAsync(
             x => x.Id == workflowInstanceId,
             cancellationToken)
-            ?? throw new InvalidOperationException($"Workflow '{workflowInstanceId}' was not found.");
+            ?? throw new WorkflowNotFoundException($"Workflow '{workflowInstanceId}' was not found.");
 
         if (!string.Equals(workflow.Status, WorkflowInstanceStatus.WaitingApproval, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Workflow is not waiting for approval.");
+            throw new WorkflowConflictException("Workflow is not waiting for approval.");
         }
 
         if (workflow.ApprovalReferenceId is null)
         {
-            throw new InvalidOperationException("Workflow approval reference is missing.");
+            throw new WorkflowConflictException("Workflow approval reference is missing.");
         }
 
-        var checkpoint = await dbContext.WorkflowCheckpoints
-            .Where(x => x.WorkflowInstanceId == workflowInstanceId && x.CheckpointType == "approval")
-            .OrderByDescending(x => x.Superstep)
-            .ThenByDescending(x => x.CreatedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? throw new InvalidOperationException("Approval checkpoint was not found.");
+        ApprovalCheckpointState state;
+        try
+        {
+            var checkpoint = await dbContext.WorkflowCheckpoints
+                .Where(x => x.WorkflowInstanceId == workflowInstanceId && x.CheckpointType == "approval")
+                .OrderByDescending(x => x.Superstep)
+                .ThenByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new WorkflowConflictException("Approval checkpoint was not found.");
 
-        var state = JsonSerializer.Deserialize<ApprovalCheckpointState>(checkpoint.StateJson, CheckpointJsonOptions)
-            ?? throw new InvalidOperationException("Approval checkpoint state was invalid.");
+            state = JsonSerializer.Deserialize<ApprovalCheckpointState>(checkpoint.StateJson, CheckpointJsonOptions)
+                ?? throw new WorkflowConflictException("Approval checkpoint state was invalid.");
+        }
+        catch (JsonException ex)
+        {
+            throw new WorkflowConflictException("Approval checkpoint state was invalid.", ex);
+        }
 
         var traceId = Guid.NewGuid().ToString("N");
         var command = new ApprovalDecisionCommand(request.Action, request.Actor);
@@ -110,5 +118,26 @@ public sealed class ReturnDispositionApprovalService(
                 null);
         }
         throw new ArgumentException("Unsupported approval action.", nameof(request));
+    }
+}
+
+public sealed class WorkflowNotFoundException : Exception
+{
+    public WorkflowNotFoundException(string message)
+        : base(message)
+    {
+    }
+}
+
+public sealed class WorkflowConflictException : Exception
+{
+    public WorkflowConflictException(string message)
+        : base(message)
+    {
+    }
+
+    public WorkflowConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
     }
 }
