@@ -19,6 +19,43 @@ public sealed class WorkflowInstance
     public DateTimeOffset? CompletedAtUtc { get; set; }
 
     public List<WorkflowCheckpoint> Checkpoints { get; init; } = [];
+
+    public void WaitForApproval(Guid? approvalReferenceId)
+    {
+        ApprovalReferenceId = approvalReferenceId;
+        Status = WorkflowInstanceStatus.WaitingApproval;
+        CompletedAtUtc = null;
+        Version++;
+    }
+
+    public void ClaimApproval()
+    {
+        Status = WorkflowInstanceStatus.Approving;
+        Version++;
+    }
+
+    public void Complete()
+    {
+        Status = WorkflowInstanceStatus.Completed;
+        CompletedAtUtc = DateTimeOffset.UtcNow;
+        Version++;
+    }
+
+    public void CompleteApproval() => Complete();
+
+    public void RejectApproval()
+    {
+        Status = WorkflowInstanceStatus.Rejected;
+        CompletedAtUtc = DateTimeOffset.UtcNow;
+        Version++;
+    }
+
+    public void Fail()
+    {
+        Status = WorkflowInstanceStatus.Failed;
+        CompletedAtUtc = DateTimeOffset.UtcNow;
+        Version++;
+    }
 }
 
 public static class WorkflowInstanceStatus

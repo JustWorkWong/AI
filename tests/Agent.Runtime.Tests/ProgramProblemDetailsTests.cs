@@ -4,8 +4,12 @@ using System.Text.Json;
 using Agent.Runtime.Clients;
 using Agent.Runtime.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Npgsql;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
@@ -252,6 +256,49 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task Runtime_initializer_should_add_version_column_idempotently()
+    {
+        var connectionString = await CreateIsolatedDatabaseAsync(_fixture.ConnectionString, "agent_runtime");
+        using var app = await CreateAppAsync(connectionString: connectionString);
+        var workflowInstanceId = Guid.NewGuid();
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AgentRuntimeDbContext>();
+            db.WorkflowInstances.Add(new WorkflowInstance
+            {
+                Id = workflowInstanceId,
+                SessionId = Guid.NewGuid(),
+                WorkflowCode = "return-disposition-execute",
+                Status = WorkflowInstanceStatus.WaitingApproval,
+                ApprovalReferenceId = Guid.NewGuid()
+            });
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlRawAsync("""
+                ALTER TABLE agent_runtime.workflow_instances DROP COLUMN IF EXISTS "Version";
+                """);
+        }
+
+        var development = new StubHostEnvironment(Environments.Development);
+        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, development);
+        await RuntimeDatabaseInitializer.InitializeAsync(app.Services, development);
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var valueCommand = new NpgsqlCommand(
+            """
+            SELECT "Version"
+            FROM agent_runtime.workflow_instances
+            WHERE "Id" = @id;
+            """,
+            connection);
+        valueCommand.Parameters.AddWithValue("id", workflowInstanceId);
+
+        var version = (int)(await valueCommand.ExecuteScalarAsync() ?? -1);
+        Assert.Equal(0, version);
+    }
+
+    [Fact]
     public async Task Test_fault_endpoint_should_return_problem_details_with_trace_id()
     {
         using var app = await CreateAppAsync();
@@ -264,9 +311,10 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
 
     private async Task<WebApplicationFactory<global::Program>> CreateAppAsync(
         Action<AgentRuntimeDbContext>? seed = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        string? connectionString = null)
     {
-        var app = new RuntimeApiFactory(_fixture.ConnectionString).WithWebHostBuilder(builder =>
+        var app = new RuntimeApiFactory(connectionString ?? _fixture.ConnectionString).WithWebHostBuilder(builder =>
         {
             if (configureServices is not null)
             {
@@ -305,6 +353,20 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
         Assert.False(document.RootElement.TryGetProperty("error", out _));
         Assert.True(document.RootElement.TryGetProperty("traceId", out var traceId));
         Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    private static async Task<string> CreateIsolatedDatabaseAsync(string connectionString, string prefix)
+    {
+        var databaseName = $"{prefix}_{Guid.NewGuid():N}";
+        var builder = new NpgsqlConnectionStringBuilder(connectionString) { Database = databaseName };
+        var adminBuilder = new NpgsqlConnectionStringBuilder(connectionString) { Database = "postgres" };
+
+        await using var connection = new NpgsqlConnection(adminBuilder.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"""CREATE DATABASE "{databaseName}";""", connection);
+        await command.ExecuteNonQueryAsync();
+
+        return builder.ConnectionString;
     }
 
     private sealed class BlockingDispositionClient : IDomainDispositionClient
@@ -375,5 +437,17 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
             Task.FromResult<IReadOnlyList<SopChunkDto>>([
                 new SopChunkDto(Guid.NewGuid(), Guid.NewGuid(), "SOP-RET-001", "v1", query.StepCode, "guidance")
             ]);
+    }
+
+    private sealed class StubHostEnvironment(string environmentName) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = environmentName;
+
+        public string ApplicationName { get; set; } = "Agent.Runtime.Tests";
+
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new PhysicalFileProvider(AppContext.BaseDirectory);
     }
 }

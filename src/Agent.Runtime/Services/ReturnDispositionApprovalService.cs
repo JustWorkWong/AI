@@ -68,7 +68,6 @@ public sealed class ReturnDispositionApprovalService(
             return await CompleteApprovalAsync(
                 workflow,
                 "Completed",
-                WorkflowInstanceStatus.Completed,
                 approvalReferenceId,
                 state.Outcome,
                 cancellationToken);
@@ -79,7 +78,6 @@ public sealed class ReturnDispositionApprovalService(
             return await CompleteApprovalAsync(
                 workflow,
                 "Rejected",
-                WorkflowInstanceStatus.Rejected,
                 approvalReferenceId,
                 null,
                 cancellationToken);
@@ -146,8 +144,7 @@ public sealed class ReturnDispositionApprovalService(
 
     private async Task ClaimApprovalAsync(WorkflowInstance workflow, CancellationToken cancellationToken)
     {
-        workflow.Status = WorkflowInstanceStatus.Approving;
-        workflow.Version++;
+        workflow.ClaimApproval();
 
         try
         {
@@ -162,14 +159,18 @@ public sealed class ReturnDispositionApprovalService(
     private async Task<DispositionExecutionResultDto> CompleteApprovalAsync(
         WorkflowInstance workflow,
         string resultStatus,
-        string workflowStatus,
         Guid approvalReferenceId,
         string? outcome,
         CancellationToken cancellationToken)
     {
-        workflow.Status = workflowStatus;
-        workflow.CompletedAtUtc = DateTimeOffset.UtcNow;
-        workflow.Version++;
+        if (string.Equals(resultStatus, "Completed", StringComparison.Ordinal))
+        {
+            workflow.CompleteApproval();
+        }
+        else
+        {
+            workflow.RejectApproval();
+        }
 
         try
         {

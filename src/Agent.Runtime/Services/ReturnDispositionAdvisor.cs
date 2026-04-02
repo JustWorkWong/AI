@@ -68,8 +68,7 @@ public sealed class ReturnDispositionAdvisor(
             var riskLevel = outcome == "Scrap" ? "High" : "Low";
             var approvalStatus = riskLevel == "High" ? "Pending" : "NotRequired";
 
-            workflowInstance.Status = WorkflowInstanceStatus.Completed;
-            workflowInstance.CompletedAtUtc = DateTimeOffset.UtcNow;
+            workflowInstance.Complete();
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return new DispositionSuggestionDto(
@@ -81,8 +80,7 @@ public sealed class ReturnDispositionAdvisor(
         }
         catch
         {
-            workflowInstance.Status = WorkflowInstanceStatus.Failed;
-            workflowInstance.CompletedAtUtc = DateTimeOffset.UtcNow;
+            workflowInstance.Fail();
             await dbContext.SaveChangesAsync(cancellationToken);
             throw;
         }

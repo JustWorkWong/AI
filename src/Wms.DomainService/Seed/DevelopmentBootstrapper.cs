@@ -29,6 +29,7 @@ public static class DevelopmentBootstrapper
         var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
 
         await EnsureDatabaseReadyAsync(db, cancellationToken);
+        await ApplySchemaUpgradesAsync(db, cancellationToken);
         await SeedRolesAsync(db, cancellationToken);
         await SeedDemoReturnFlowAsync(db, cancellationToken);
     }
@@ -58,6 +59,18 @@ public static class DevelopmentBootstrapper
         || exception is IOException
         || exception is TimeoutException
         || exception.InnerException is not null && IsTransientStartupFailure(exception.InnerException);
+
+    private static Task ApplySchemaUpgradesAsync(
+        WmsDbContext db,
+        CancellationToken cancellationToken)
+    {
+        return db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ApprovalActions_ApprovalTaskId"
+            ON "ApprovalActions" ("ApprovalTaskId");
+            """,
+            cancellationToken);
+    }
 
     private static async Task SeedRolesAsync(
         WmsDbContext db,

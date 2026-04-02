@@ -12,6 +12,70 @@ namespace Agent.Runtime.Tests;
 public sealed class ReturnDispositionApprovalServiceTests
 {
     [Fact]
+    public void ClaimApproval_should_move_to_approving_and_increment_version()
+    {
+        var workflow = new WorkflowInstance
+        {
+            Status = WorkflowInstanceStatus.WaitingApproval,
+            Version = 2
+        };
+
+        workflow.ClaimApproval();
+
+        Assert.Equal(WorkflowInstanceStatus.Approving, workflow.Status);
+        Assert.Equal(3, workflow.Version);
+        Assert.Null(workflow.CompletedAtUtc);
+    }
+
+    [Fact]
+    public void CompleteApproval_should_mark_completed_and_increment_version()
+    {
+        var workflow = new WorkflowInstance
+        {
+            Status = WorkflowInstanceStatus.Approving,
+            Version = 1
+        };
+
+        workflow.CompleteApproval();
+
+        Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
+        Assert.Equal(2, workflow.Version);
+        Assert.NotNull(workflow.CompletedAtUtc);
+    }
+
+    [Fact]
+    public void RejectApproval_should_mark_rejected_and_increment_version()
+    {
+        var workflow = new WorkflowInstance
+        {
+            Status = WorkflowInstanceStatus.Approving,
+            Version = 4
+        };
+
+        workflow.RejectApproval();
+
+        Assert.Equal(WorkflowInstanceStatus.Rejected, workflow.Status);
+        Assert.Equal(5, workflow.Version);
+        Assert.NotNull(workflow.CompletedAtUtc);
+    }
+
+    [Fact]
+    public void Fail_should_mark_failed_and_increment_version()
+    {
+        var workflow = new WorkflowInstance
+        {
+            Status = WorkflowInstanceStatus.Running,
+            Version = 7
+        };
+
+        workflow.Fail();
+
+        Assert.Equal(WorkflowInstanceStatus.Failed, workflow.Status);
+        Assert.Equal(8, workflow.Version);
+        Assert.NotNull(workflow.CompletedAtUtc);
+    }
+
+    [Fact]
     public async Task Approve_should_apply_disposition_and_complete_workflow()
     {
         await using var db = CreateDbContext();
@@ -33,6 +97,7 @@ public sealed class ReturnDispositionApprovalServiceTests
 
         var workflow = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
         Assert.Equal(WorkflowInstanceStatus.Completed, workflow.Status);
+        Assert.Equal(2, workflow.Version);
     }
 
     [Fact]
@@ -56,6 +121,7 @@ public sealed class ReturnDispositionApprovalServiceTests
 
         var workflow = await db.WorkflowInstances.SingleAsync(x => x.Id == workflowInstanceId);
         Assert.Equal("Rejected", workflow.Status);
+        Assert.Equal(2, workflow.Version);
     }
 
     private static AgentRuntimeDbContext CreateDbContext()

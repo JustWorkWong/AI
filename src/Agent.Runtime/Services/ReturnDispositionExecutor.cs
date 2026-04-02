@@ -43,14 +43,19 @@ public sealed class ReturnDispositionExecutor(
 
             await PersistCheckpointsAsync(workflowInstance.Id, context.Checkpoints, cancellationToken);
 
-            workflowInstance.ApprovalReferenceId = result.ApprovalReferenceId;
-            workflowInstance.Status = result.Status switch
+            switch (result.Status)
             {
-                "WaitingForApproval" => WorkflowInstanceStatus.WaitingApproval,
-                "Completed" => WorkflowInstanceStatus.Completed,
-                _ => WorkflowInstanceStatus.Failed
-            };
-            workflowInstance.CompletedAtUtc = DateTimeOffset.UtcNow;
+                case "WaitingForApproval":
+                    workflowInstance.WaitForApproval(result.ApprovalReferenceId);
+                    break;
+                case "Completed":
+                    workflowInstance.Complete();
+                    break;
+                default:
+                    workflowInstance.Fail();
+                    break;
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return new DispositionExecutionResultDto(
@@ -61,8 +66,7 @@ public sealed class ReturnDispositionExecutor(
         }
         catch
         {
-            workflowInstance.Status = WorkflowInstanceStatus.Failed;
-            workflowInstance.CompletedAtUtc = DateTimeOffset.UtcNow;
+            workflowInstance.Fail();
             await dbContext.SaveChangesAsync(cancellationToken);
             throw;
         }

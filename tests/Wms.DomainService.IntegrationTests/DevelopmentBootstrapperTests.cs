@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 using Wms.DomainService.Persistence;
@@ -49,6 +51,54 @@ public sealed class DevelopmentBootstrapperTests : IClassFixture<PostgresFixture
         var candidates = await sopResponse.Content.ReadFromJsonAsync<IReadOnlyList<SopCandidateDto>>();
         Assert.NotNull(candidates);
         Assert.Single(candidates!);
+    }
+
+    [Fact]
+    public async Task Initialize_should_apply_unique_index_upgrade_idempotently()
+    {
+        var connectionString = await CreateIsolatedDatabaseAsync(_fixture.ConnectionString, "wms_bootstrap");
+        await using var app = await TestAppFactory.CreateDomainServiceAsync(connectionString);
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+            await db.Database.ExecuteSqlRawAsync("""
+                DROP INDEX IF EXISTS "IX_ApprovalActions_ApprovalTaskId";
+                """);
+        }
+
+        var development = new StubHostEnvironment(Environments.Development);
+        await DevelopmentBootstrapper.InitializeAsync(app.Services, development);
+        await DevelopmentBootstrapper.InitializeAsync(app.Services, development);
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT COUNT(*)
+            FROM pg_indexes
+            WHERE schemaname = 'public'
+              AND tablename = 'ApprovalActions'
+              AND indexname = 'IX_ApprovalActions_ApprovalTaskId';
+            """,
+            connection);
+
+        var indexCount = (long)(await command.ExecuteScalarAsync() ?? 0L);
+        Assert.Equal(1L, indexCount);
+    }
+
+    private static async Task<string> CreateIsolatedDatabaseAsync(string connectionString, string prefix)
+    {
+        var databaseName = $"{prefix}_{Guid.NewGuid():N}";
+        var builder = new NpgsqlConnectionStringBuilder(connectionString) { Database = databaseName };
+        var adminBuilder = new NpgsqlConnectionStringBuilder(connectionString) { Database = "postgres" };
+
+        await using var connection = new NpgsqlConnection(adminBuilder.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"""CREATE DATABASE "{databaseName}";""", connection);
+        await command.ExecuteNonQueryAsync();
+
+        return builder.ConnectionString;
     }
 
     private sealed class StubHostEnvironment(string environmentName) : IHostEnvironment

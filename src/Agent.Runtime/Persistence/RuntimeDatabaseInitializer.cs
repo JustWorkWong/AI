@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data.Common;
 using System.IO;
@@ -21,6 +22,7 @@ public static class RuntimeDatabaseInitializer
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AgentRuntimeDbContext>();
         await EnsureDatabaseReadyAsync(db, cancellationToken);
+        await ApplySchemaUpgradesAsync(db, cancellationToken);
     }
 
     private static async Task EnsureDatabaseReadyAsync(
@@ -48,4 +50,26 @@ public static class RuntimeDatabaseInitializer
         || exception is IOException
         || exception is TimeoutException
         || exception.InnerException is not null && IsTransientStartupFailure(exception.InnerException);
+
+    private static Task ApplySchemaUpgradesAsync(
+        AgentRuntimeDbContext db,
+        CancellationToken cancellationToken)
+    {
+        return db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE IF EXISTS agent_runtime.workflow_instances
+                ADD COLUMN IF NOT EXISTS "Version" integer;
+
+            UPDATE agent_runtime.workflow_instances
+            SET "Version" = 0
+            WHERE "Version" IS NULL;
+
+            ALTER TABLE IF EXISTS agent_runtime.workflow_instances
+                ALTER COLUMN "Version" SET DEFAULT 0;
+
+            ALTER TABLE IF EXISTS agent_runtime.workflow_instances
+                ALTER COLUMN "Version" SET NOT NULL;
+            """,
+            cancellationToken);
+    }
 }
