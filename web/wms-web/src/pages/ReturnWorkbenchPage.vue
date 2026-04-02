@@ -45,31 +45,18 @@
       </ul>
     </article>
 
-    <section v-if="executionTrace" class="panel-grid">
-      <article class="panel">
-        <h3>Tool Timeline</h3>
-        <ul class="citation-list">
-          <li v-for="tool in executionTrace.toolInvocations" :key="tool.toolInvocationId">
-            {{ tool.toolName }} / {{ tool.status }} / {{ tool.durationMs }} ms
-          </li>
-        </ul>
-      </article>
-
-      <article class="panel">
-        <h3>Checkpoints</h3>
-        <ul class="citation-list">
-          <li v-for="checkpoint in executionTrace.checkpoints" :key="checkpoint.checkpointId">
-            step {{ checkpoint.superstep }} / {{ checkpoint.checkpointType }} / {{ checkpoint.stateJson }}
-          </li>
-        </ul>
-      </article>
-    </section>
+    <ExecutionTracePanel
+      v-if="executionTrace"
+      :tool-invocations="executionTrace.toolInvocations"
+      :checkpoints="executionTrace.checkpoints"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useRoute } from "vue-router";
+import ExecutionTracePanel from "../components/return-workbench/ExecutionTracePanel.vue";
 import ReturnDispositionCard from "../components/return-workbench/ReturnDispositionCard.vue";
 import { createReturnWorkbench } from "../composables/useReturnWorkbench";
 
