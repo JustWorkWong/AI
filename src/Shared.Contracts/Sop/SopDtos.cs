@@ -23,7 +23,12 @@ public sealed record SopChunkDto(
     string StepCode,
     string Content);
 
-public sealed record PublishSopCommand(string RawContent);
+public sealed record PublishSopCommand(
+    string DocumentCode,
+    string OperationCode,
+    string Version,
+    string Title,
+    string RawContent);
 
 public sealed record RetrieveSopQuery(string StepCode);
 

@@ -4,6 +4,7 @@
 - `DispositionEndpoints.cs`: 处置审批申请与最终落单端点。
 - `AttachmentEndpoints.cs`: 退货附件上传与对象存储边界。
 - `ReturnReadEndpoints.cs`: 退货单视图与历史案例读取。
+- `SopPublishEndpoints.cs`: SOP 文档发布与切块持久化。
 - `SopReadEndpoints.cs`: SOP 候选与切块读取。
 
 ## 原则
