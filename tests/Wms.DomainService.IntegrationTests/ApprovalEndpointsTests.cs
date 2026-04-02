@@ -108,6 +108,37 @@ public sealed class ApprovalEndpointsTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task Concurrent_approval_actions_should_only_persist_one_action()
+    {
+        var approvalTaskId = Guid.NewGuid();
+
+        await using var app = await TestAppFactory.CreateDomainServiceAsync(_fixture.ConnectionString);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+            db.ApprovalTasks.Add(new ApprovalTask(approvalTaskId, "Disposition", Guid.NewGuid()));
+            await db.SaveChangesAsync();
+        }
+
+        var client = app.CreateClient();
+        var approveTask = client.PostAsJsonAsync(
+            $"/internal/approvals/{approvalTaskId}/actions",
+            new ApprovalDecisionRequest("Approve", "manager-1"));
+        var rejectTask = client.PostAsJsonAsync(
+            $"/internal/approvals/{approvalTaskId}/actions",
+            new ApprovalDecisionRequest("Reject", "manager-2"));
+
+        var responses = await Task.WhenAll(approveTask, rejectTask);
+
+        Assert.Contains(responses, response => response.StatusCode == HttpStatusCode.Accepted);
+        Assert.Contains(responses, response => response.StatusCode == HttpStatusCode.Conflict);
+
+        await using var verifyScope = app.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<WmsDbContext>();
+        Assert.Single(verifyDb.ApprovalActions.Where(x => x.ApprovalTaskId == approvalTaskId));
+    }
+
+    [Fact]
     public async Task Post_invalid_approval_action_should_return_problem_details_with_trace_id()
     {
         var approvalTaskId = Guid.NewGuid();

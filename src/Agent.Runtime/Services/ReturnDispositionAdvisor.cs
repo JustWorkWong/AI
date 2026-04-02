@@ -37,7 +37,7 @@ public sealed class ReturnDispositionAdvisor(
                     ct => domainKnowledgeClient.GetReturnOrderAsync(returnOrderId, ct),
                     workflowInstance.Id,
                     cancellationToken)
-            ?? throw new InvalidOperationException($"Return order '{returnOrderId}' was not found.");
+            ?? throw new ReturnOrderNotFoundException(returnOrderId);
 
             var historicalCases = await toolLoggingMiddleware.ExecuteAsync(
                 Tools.SearchHistoricalCasesTool.Name,
@@ -104,4 +104,15 @@ public sealed class ReturnDispositionAdvisor(
 
         return citations;
     }
+}
+
+public sealed class ReturnOrderNotFoundException : Exception
+{
+    public ReturnOrderNotFoundException(Guid returnOrderId)
+        : base($"Return order '{returnOrderId}' was not found.")
+    {
+        ReturnOrderId = returnOrderId;
+    }
+
+    public Guid ReturnOrderId { get; }
 }

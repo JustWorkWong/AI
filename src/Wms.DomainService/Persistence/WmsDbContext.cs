@@ -119,6 +119,7 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Action).HasMaxLength(32);
             entity.Property(x => x.Actor).HasMaxLength(128);
+            entity.HasIndex(x => x.ApprovalTaskId).IsUnique();
         });
 
         modelBuilder.Entity<CommandDeduplication>(entity =>

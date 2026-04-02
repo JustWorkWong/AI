@@ -24,44 +24,15 @@ public sealed class ReturnDispositionApprovalService(
         ApprovalDecisionRequest request,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(request.Action, "Reject", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("Unsupported approval action.", nameof(request));
-        }
+        ValidateAction(request);
 
-        var workflow = await dbContext.WorkflowInstances.SingleOrDefaultAsync(
-            x => x.Id == workflowInstanceId,
-            cancellationToken)
-            ?? throw new WorkflowNotFoundException($"Workflow '{workflowInstanceId}' was not found.");
+        var workflow = await LoadWorkflowAsync(workflowInstanceId, cancellationToken);
+        var approvalReferenceId = workflow.ApprovalReferenceId
+            ?? throw new WorkflowConflictException("Workflow approval reference is missing.");
+        var state = await LoadApprovalCheckpointStateAsync(workflowInstanceId, cancellationToken);
 
-        if (!string.Equals(workflow.Status, WorkflowInstanceStatus.WaitingApproval, StringComparison.Ordinal))
-        {
-            throw new WorkflowConflictException("Workflow is not waiting for approval.");
-        }
-
-        if (workflow.ApprovalReferenceId is null)
-        {
-            throw new WorkflowConflictException("Workflow approval reference is missing.");
-        }
-
-        ApprovalCheckpointState state;
-        try
-        {
-            var checkpoint = await dbContext.WorkflowCheckpoints
-                .Where(x => x.WorkflowInstanceId == workflowInstanceId && x.CheckpointType == "approval")
-                .OrderByDescending(x => x.Superstep)
-                .ThenByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken)
-                ?? throw new WorkflowConflictException("Approval checkpoint was not found.");
-
-            state = JsonSerializer.Deserialize<ApprovalCheckpointState>(checkpoint.StateJson, CheckpointJsonOptions)
-                ?? throw new WorkflowConflictException("Approval checkpoint state was invalid.");
-        }
-        catch (JsonException ex)
-        {
-            throw new WorkflowConflictException("Approval checkpoint state was invalid.", ex);
-        }
+        EnsureApprovalReferenceConsistency(workflow, state);
+        await ClaimApprovalAsync(workflow, cancellationToken);
 
         var traceId = Guid.NewGuid().ToString("N");
         var command = new ApprovalDecisionCommand(request.Action, request.Actor);
@@ -69,10 +40,10 @@ public sealed class ReturnDispositionApprovalService(
         await toolLoggingMiddleware.ExecuteAsync(
             "DecideApproval",
             traceId,
-            JsonSerializer.Serialize(new { workflowInstanceId, state.ApprovalReferenceId, request.Action, request.Actor }),
+            JsonSerializer.Serialize(new { workflowInstanceId, approvalReferenceId, request.Action, request.Actor }),
             async ct =>
             {
-                await domainDispositionClient.DecideApprovalAsync(state.ApprovalReferenceId, command, ct);
+                await domainDispositionClient.DecideApprovalAsync(approvalReferenceId, command, ct);
                 return "accepted";
             },
             workflowInstanceId,
@@ -91,33 +62,129 @@ public sealed class ReturnDispositionApprovalService(
                         ct);
                     return "accepted";
                 },
-                workflowInstanceId,
-                cancellationToken);
+                    workflowInstanceId,
+                    cancellationToken);
 
-            workflow.Status = WorkflowInstanceStatus.Completed;
-            workflow.CompletedAtUtc = DateTimeOffset.UtcNow;
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            return new DispositionExecutionResultDto(
-                workflowInstanceId,
+            return await CompleteApprovalAsync(
+                workflow,
                 "Completed",
-                state.ApprovalReferenceId,
-                state.Outcome);
+                WorkflowInstanceStatus.Completed,
+                approvalReferenceId,
+                state.Outcome,
+                cancellationToken);
         }
 
         if (string.Equals(request.Action, "Reject", StringComparison.OrdinalIgnoreCase))
         {
-            workflow.Status = WorkflowInstanceStatus.Rejected;
-            workflow.CompletedAtUtc = DateTimeOffset.UtcNow;
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            return new DispositionExecutionResultDto(
-                workflowInstanceId,
+            return await CompleteApprovalAsync(
+                workflow,
                 "Rejected",
-                state.ApprovalReferenceId,
-                null);
+                WorkflowInstanceStatus.Rejected,
+                approvalReferenceId,
+                null,
+                cancellationToken);
         }
+
         throw new ArgumentException("Unsupported approval action.", nameof(request));
+    }
+
+    private static void ValidateAction(ApprovalDecisionRequest request)
+    {
+        if (!string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(request.Action, "Reject", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Unsupported approval action.", nameof(request));
+        }
+    }
+
+    private async Task<WorkflowInstance> LoadWorkflowAsync(Guid workflowInstanceId, CancellationToken cancellationToken)
+    {
+        var workflow = await dbContext.WorkflowInstances.SingleOrDefaultAsync(
+            x => x.Id == workflowInstanceId,
+            cancellationToken)
+            ?? throw new WorkflowNotFoundException($"Workflow '{workflowInstanceId}' was not found.");
+
+        if (!string.Equals(workflow.Status, WorkflowInstanceStatus.WaitingApproval, StringComparison.Ordinal))
+        {
+            throw new WorkflowConflictException("Workflow is not waiting for approval.");
+        }
+
+        return workflow;
+    }
+
+    private async Task<ApprovalCheckpointState> LoadApprovalCheckpointStateAsync(
+        Guid workflowInstanceId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var checkpoint = await dbContext.WorkflowCheckpoints
+                .Where(x => x.WorkflowInstanceId == workflowInstanceId && x.CheckpointType == "approval")
+                .OrderByDescending(x => x.Superstep)
+                .ThenByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new WorkflowConflictException("Approval checkpoint was not found.");
+
+            return JsonSerializer.Deserialize<ApprovalCheckpointState>(checkpoint.StateJson, CheckpointJsonOptions)
+                ?? throw new WorkflowConflictException("Approval checkpoint state was invalid.");
+        }
+        catch (JsonException ex)
+        {
+            throw new WorkflowConflictException("Approval checkpoint state was invalid.", ex);
+        }
+    }
+
+    private static void EnsureApprovalReferenceConsistency(
+        WorkflowInstance workflow,
+        ApprovalCheckpointState state)
+    {
+        if (workflow.ApprovalReferenceId != state.ApprovalReferenceId)
+        {
+            throw new WorkflowConflictException("Workflow approval reference does not match checkpoint state.");
+        }
+    }
+
+    private async Task ClaimApprovalAsync(WorkflowInstance workflow, CancellationToken cancellationToken)
+    {
+        workflow.Status = WorkflowInstanceStatus.Approving;
+        workflow.Version++;
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new WorkflowConflictException("Workflow approval is already being processed.", ex);
+        }
+    }
+
+    private async Task<DispositionExecutionResultDto> CompleteApprovalAsync(
+        WorkflowInstance workflow,
+        string resultStatus,
+        string workflowStatus,
+        Guid approvalReferenceId,
+        string? outcome,
+        CancellationToken cancellationToken)
+    {
+        workflow.Status = workflowStatus;
+        workflow.CompletedAtUtc = DateTimeOffset.UtcNow;
+        workflow.Version++;
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new WorkflowConflictException("Workflow approval could not be finalized.", ex);
+        }
+
+        return new DispositionExecutionResultDto(
+            workflow.Id,
+            resultStatus,
+            approvalReferenceId,
+            outcome);
     }
 }
 

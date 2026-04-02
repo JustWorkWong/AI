@@ -84,7 +84,7 @@ public sealed class ReturnDispositionExecutor(
                     ct => domainKnowledgeClient.GetReturnOrderAsync(request.ReturnOrderId, ct),
                     workflowInstanceId,
                     cancellationToken)
-                    ?? throw new InvalidOperationException($"Return order '{request.ReturnOrderId}' was not found.");
+                    ?? throw new ReturnOrderNotFoundException(request.ReturnOrderId);
 
                 return new ReturnOrderSnapshot(order.ReturnOrderId, order.QualityState);
             });

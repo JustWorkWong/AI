@@ -149,7 +149,7 @@ public partial class Program
             var suggestion = await advisor.GetSuggestionAsync(returnOrderId, cancellationToken);
             return Results.Ok(suggestion);
         }
-        catch (InvalidOperationException)
+        catch (ReturnOrderNotFoundException)
         {
             return CreateProblemResult(
                 httpContext,
@@ -171,7 +171,7 @@ public partial class Program
             var result = await executor.ExecuteAsync(returnOrderId, request, cancellationToken);
             return Results.Ok(result);
         }
-        catch (InvalidOperationException)
+        catch (ReturnOrderNotFoundException)
         {
             return CreateProblemResult(
                 httpContext,

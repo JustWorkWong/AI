@@ -26,6 +26,7 @@ public sealed class AgentRuntimeDbContext(DbContextOptions<AgentRuntimeDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.WorkflowCode).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(40);
+            entity.Property(x => x.Version).IsConcurrencyToken();
             entity.HasIndex(x => new { x.WorkflowCode, x.Status });
             entity.HasMany(x => x.Checkpoints)
                 .WithOne()

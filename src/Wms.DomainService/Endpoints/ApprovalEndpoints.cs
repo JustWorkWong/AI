@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Shared.Contracts.Approvals;
 using Wms.DomainService.Approvals;
 using Wms.DomainService.Persistence;
@@ -87,10 +88,30 @@ public static class ApprovalEndpoints
                 task.MarkRejected();
             }
 
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (IsDuplicateApprovalAction(ex))
+            {
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status409Conflict,
+                    "Approval task conflict",
+                    $"Approval task '{approvalTaskId}' already has an action.");
+            }
+
             return Results.Accepted();
         });
 
         return endpoints;
+    }
+
+    private static bool IsDuplicateApprovalAction(DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation
+        };
     }
 }
