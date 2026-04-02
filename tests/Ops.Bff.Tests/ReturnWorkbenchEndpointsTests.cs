@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ops.Bff.Clients;
+using Ops.Bff.Tests.TestDoubles;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Common;
 using Shared.Contracts.Returns;
@@ -18,6 +19,8 @@ public sealed class ReturnWorkbenchEndpointsTests
     [Fact]
     public async Task Get_return_workbench_should_return_suggestion_and_approval_summary()
     {
+        var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
         await using var app = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -26,13 +29,30 @@ public sealed class ReturnWorkbenchEndpointsTests
                 {
                     services.RemoveAll<IDomainServiceClient>();
                     services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient());
+                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient
+                    {
+                        PendingApprovals = 3,
+                        ReturnOrder = new ReturnOrderDto(
+                            returnOrderId,
+                            "RMA-001",
+                            "Broken",
+                            "PendingInspection",
+                            "Damaged shell")
+                    });
+                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient
+                    {
+                        FailureCount = 1,
+                        GetDispositionSuggestionAsyncHandler = static (returnOrderId, _) => Task.FromResult<DispositionSuggestionDto?>(new DispositionSuggestionDto(
+                            returnOrderId,
+                            "Scrap",
+                            "High",
+                            [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
+                            "Pending"))
+                    });
                 });
             });
 
         var client = app.CreateClient();
-        var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         var response = await client.GetAsync($"/api/returns/workbench/{returnOrderId}");
 
@@ -47,6 +67,8 @@ public sealed class ReturnWorkbenchEndpointsTests
     [Fact]
     public async Task Get_return_workbench_should_degrade_when_runtime_suggestion_is_unavailable()
     {
+        var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
         await using var app = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -55,13 +77,20 @@ public sealed class ReturnWorkbenchEndpointsTests
                 {
                     services.RemoveAll<IDomainServiceClient>();
                     services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new NullSuggestionAgentRuntimeClient());
+                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient
+                    {
+                        ReturnOrder = new ReturnOrderDto(
+                            returnOrderId,
+                            "RMA-001",
+                            "Broken",
+                            "PendingInspection",
+                            "Damaged shell")
+                    });
+                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient());
                 });
             });
 
         var client = app.CreateClient();
-        var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         var response = await client.GetAsync($"/api/returns/workbench/{returnOrderId}");
 
@@ -72,94 +101,5 @@ public sealed class ReturnWorkbenchEndpointsTests
         Assert.Equal("Unavailable", payload!.Suggestion.ApprovalStatus);
         Assert.Equal("PendingInspection", payload.Order.Status);
         Assert.Empty(payload.Suggestion.Citations);
-    }
-
-    private sealed class StubDomainServiceClient : IDomainServiceClient
-    {
-        public Task<int> GetPendingApprovalsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(3);
-
-        public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<ReturnOrderDto?>(new ReturnOrderDto(
-                returnOrderId,
-                "RMA-001",
-                "Broken",
-                "PendingInspection",
-                "Damaged shell"));
-    }
-
-    private sealed class StubAgentRuntimeClient : IAgentRuntimeClient
-    {
-        public Task<int> GetFailureCountAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(1);
-
-        public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionSuggestionDto?>(new DispositionSuggestionDto(
-                returnOrderId,
-                "Scrap",
-                "High",
-                [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
-                "Pending"));
-
-        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
-            Guid returnOrderId,
-            ExecuteDispositionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
-            Guid workflowInstanceId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionTraceDto?>(null);
-
-        public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
-            Guid workflowInstanceId,
-            ApprovalDecisionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
-            Guid sessionId,
-            AdvanceSopStepRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<SopExecutionViewDto?>(null);
-
-        public Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
-    }
-
-    private sealed class NullSuggestionAgentRuntimeClient : IAgentRuntimeClient
-    {
-        public Task<int> GetFailureCountAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(0);
-
-        public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionSuggestionDto?>(null);
-
-        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
-            Guid returnOrderId,
-            ExecuteDispositionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
-            Guid workflowInstanceId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionTraceDto?>(null);
-
-        public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
-            Guid workflowInstanceId,
-            ApprovalDecisionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
-            Guid sessionId,
-            AdvanceSopStepRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<SopExecutionViewDto?>(null);
-
-        public Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
     }
 }

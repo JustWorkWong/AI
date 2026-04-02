@@ -1,13 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ops.Bff.Clients;
-using Shared.Contracts.Approvals;
-using Shared.Contracts.Returns;
-using Shared.Contracts.Sop;
+using Ops.Bff.Tests.TestDoubles;
 
 namespace Ops.Bff.Tests;
 
@@ -24,8 +21,8 @@ public sealed class DashboardEndpointsTests
                 {
                     services.RemoveAll<IDomainServiceClient>();
                     services.RemoveAll<IAgentRuntimeClient>();
-                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient());
-                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient());
+                    services.AddSingleton<IDomainServiceClient>(new StubDomainServiceClient { PendingApprovals = 3 });
+                    services.AddSingleton<IAgentRuntimeClient>(new StubAgentRuntimeClient { FailureCount = 1 });
                 });
             });
 
@@ -34,49 +31,5 @@ public sealed class DashboardEndpointsTests
         var response = await client.GetAsync("/api/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    private sealed class StubDomainServiceClient : IDomainServiceClient
-    {
-        public Task<int> GetPendingApprovalsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(3);
-
-        public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<ReturnOrderDto?>(null);
-    }
-
-    private sealed class StubAgentRuntimeClient : IAgentRuntimeClient
-    {
-        public Task<int> GetFailureCountAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(1);
-
-        public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionSuggestionDto?>(null);
-
-        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
-            Guid returnOrderId,
-            ExecuteDispositionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
-            Guid workflowInstanceId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionTraceDto?>(null);
-
-        public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
-            Guid workflowInstanceId,
-            ApprovalDecisionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
-
-        public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
-            Guid sessionId,
-            AdvanceSopStepRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<SopExecutionViewDto?>(null);
-
-        public Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
     }
 }

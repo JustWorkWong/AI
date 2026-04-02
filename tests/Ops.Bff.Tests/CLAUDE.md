@@ -2,6 +2,7 @@
 
 ## 文件
 - `Ops.Bff.Tests.csproj`: BFF 测试项目。
+- `TestDoubles/`: BFF 端点测试共享替身，收敛重复接口实现。
 - `DashboardEndpointsTests.cs`: 校验首页聚合接口不会退化。
 - `DomainServiceClientTests.cs`: 校验下游 404 不会被 BFF 放大成 500。
 - `ReturnWorkbenchPresenterTests.cs`: 校验退货工作台降级 suggestion 的映射规则固定不漂移。
