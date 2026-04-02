@@ -1,5 +1,6 @@
 using Ops.Bff.Clients;
 using Ops.Bff.Endpoints;
+using Ops.Bff.Queries;
 using Wms.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,7 @@ builder.Services.AddHttpClient<IAgentRuntimeClient, AgentRuntimeClient>(client =
         builder.Configuration["Services:AgentRuntime"]
         ?? "http://agent-runtime");
 });
+builder.Services.AddScoped<IReturnWorkbenchQueryService, ReturnWorkbenchQueryService>();
 
 var app = builder.Build();
 

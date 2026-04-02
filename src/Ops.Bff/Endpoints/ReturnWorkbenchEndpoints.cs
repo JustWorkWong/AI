@@ -1,5 +1,5 @@
 using Ops.Bff.Clients;
-using Ops.Bff.Presenters;
+using Ops.Bff.Queries;
 using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 
@@ -11,22 +11,11 @@ public static class ReturnWorkbenchEndpoints
     {
         endpoints.MapGet("/api/returns/workbench/{returnOrderId:guid}", async (
             Guid returnOrderId,
-            IDomainServiceClient domainClient,
-            IAgentRuntimeClient runtimeClient,
+            IReturnWorkbenchQueryService queryService,
             CancellationToken cancellationToken) =>
         {
-            var order = await domainClient.GetReturnOrderAsync(returnOrderId, cancellationToken);
-
-            if (order is null)
-            {
-                return Results.NotFound();
-            }
-
-            var suggestion = ReturnWorkbenchPresenter.CoalesceSuggestion(
-                await TryGetSuggestionAsync(runtimeClient, returnOrderId, cancellationToken),
-                returnOrderId);
-
-            return Results.Ok(new ReturnWorkbenchViewDto(order, suggestion));
+            var view = await queryService.GetViewAsync(returnOrderId, cancellationToken);
+            return view is null ? Results.NotFound() : Results.Ok(view);
         });
 
         endpoints.MapPost("/api/returns/workbench/{returnOrderId:guid}/execute", async (
@@ -70,20 +59,5 @@ public static class ReturnWorkbenchEndpoints
         });
 
         return endpoints;
-    }
-
-    private static async Task<DispositionSuggestionDto?> TryGetSuggestionAsync(
-        IAgentRuntimeClient runtimeClient,
-        Guid returnOrderId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await runtimeClient.GetDispositionSuggestionAsync(returnOrderId, cancellationToken);
-        }
-        catch (HttpRequestException)
-        {
-            return null;
-        }
     }
 }

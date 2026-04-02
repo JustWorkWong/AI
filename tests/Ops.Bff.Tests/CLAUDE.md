@@ -5,6 +5,7 @@
 - `DashboardEndpointsTests.cs`: 校验首页聚合接口不会退化。
 - `DomainServiceClientTests.cs`: 校验下游 404 不会被 BFF 放大成 500。
 - `ReturnWorkbenchPresenterTests.cs`: 校验退货工作台降级 suggestion 的映射规则固定不漂移。
+- `ReturnWorkbenchQueryServiceTests.cs`: 校验退货工作台查询与降级策略不会散落到 endpoint。
 - `ReturnWorkbenchEndpointsTests.cs`: 校验退货工作台聚合视图。
 - `SseBridgeTests.cs`: 校验 SSE 事件桥接。
 - `ReturnDispositionExecutionEndpointsTests.cs`: 校验 BFF 透传退货处置执行命令。
