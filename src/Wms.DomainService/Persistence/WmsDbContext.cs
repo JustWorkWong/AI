@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Wms.DomainService.Approvals;
 using Wms.DomainService.Auth;
+using Wms.DomainService.Commands;
+using Wms.DomainService.Returns;
 
 namespace Wms.DomainService.Persistence;
 
@@ -14,6 +17,20 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
     public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    public DbSet<ReturnOrder> ReturnOrders => Set<ReturnOrder>();
+
+    public DbSet<QualityInspection> QualityInspections => Set<QualityInspection>();
+
+    public DbSet<DispositionDecision> DispositionDecisions => Set<DispositionDecision>();
+
+    public DbSet<HistoricalCaseView> HistoricalCaseViews => Set<HistoricalCaseView>();
+
+    public DbSet<ApprovalTask> ApprovalTasks => Set<ApprovalTask>();
+
+    public DbSet<ApprovalAction> ApprovalActions => Set<ApprovalAction>();
+
+    public DbSet<CommandDeduplication> CommandDeduplications => Set<CommandDeduplication>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +65,52 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
         modelBuilder.Entity<RolePermission>(entity =>
         {
             entity.HasKey(x => new { x.RoleId, x.PermissionId });
+        });
+
+        modelBuilder.Entity<ReturnOrder>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ReturnNo).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<QualityInspection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Condition).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<DispositionDecision>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Outcome).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<HistoricalCaseView>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Condition).HasMaxLength(64);
+            entity.Property(x => x.Outcome).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<ApprovalTask>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ApprovalType).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<ApprovalAction>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Action).HasMaxLength(32);
+            entity.Property(x => x.Actor).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<CommandDeduplication>(entity =>
+        {
+            entity.HasKey(x => x.IdempotencyKey);
+            entity.Property(x => x.CommandName).HasMaxLength(64);
         });
     }
 }

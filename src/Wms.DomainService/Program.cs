@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Approvals;
 using Wms.DomainService.Auth;
+using Wms.DomainService.Endpoints;
 using Wms.DomainService.Persistence;
 using Wms.ServiceDefaults;
 
@@ -51,6 +52,7 @@ app.MapPost("/internal/auth/sync", async (
     return Results.Accepted();
 });
 
+app.MapDispositionEndpoints();
 app.MapWmsDefaultEndpoints();
 
 app.Run();
