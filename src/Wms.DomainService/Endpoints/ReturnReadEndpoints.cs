@@ -10,6 +10,7 @@ public static class ReturnReadEndpoints
     {
         endpoints.MapGet("/internal/returns/{returnOrderId:guid}", async (
             Guid returnOrderId,
+            HttpContext httpContext,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
@@ -19,7 +20,11 @@ public static class ReturnReadEndpoints
 
             if (order is null)
             {
-                return Results.NotFound();
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status404NotFound,
+                    "Return order not found",
+                    $"Return order '{returnOrderId}' does not exist.");
             }
 
             var latestInspection = await db.QualityInspections
@@ -37,6 +42,7 @@ public static class ReturnReadEndpoints
 
         endpoints.MapGet("/internal/returns/{returnOrderId:guid}/historical-cases", async (
             Guid returnOrderId,
+            HttpContext httpContext,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
@@ -45,7 +51,11 @@ public static class ReturnReadEndpoints
 
             if (!orderExists)
             {
-                return Results.NotFound();
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status404NotFound,
+                    "Return order not found",
+                    $"Return order '{returnOrderId}' does not exist.");
             }
 
             var latestCondition = await db.QualityInspections

@@ -67,4 +67,21 @@ app.MapWmsDefaultEndpoints();
 
 app.Run();
 
-public partial class Program;
+public partial class Program
+{
+    public static IResult CreateProblemResult(
+        HttpContext httpContext,
+        int statusCode,
+        string title,
+        string detail)
+    {
+        return Results.Problem(
+            title: title,
+            detail: detail,
+            statusCode: statusCode,
+            extensions: new Dictionary<string, object?>
+            {
+                ["traceId"] = httpContext.TraceIdentifier
+            });
+    }
+}

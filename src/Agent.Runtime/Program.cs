@@ -72,14 +72,22 @@ app.MapGet("/internal/runtime/failures/count", async (
 
 app.MapGet("/internal/runtime/model-profiles/{profileCode}", (
     string profileCode,
+    HttpContext httpContext,
     IModelGateway gateway) =>
 {
     var profile = gateway.GetProfile(profileCode);
-    return profile is null ? Results.NotFound() : Results.Ok(profile);
+    return profile is null
+        ? Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status404NotFound,
+            "Model profile not found",
+            $"Model profile '{profileCode}' does not exist.")
+        : Results.Ok(profile);
 });
 
 app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", async (
     Guid returnOrderId,
+    HttpContext httpContext,
     ReturnDispositionAdvisor advisor,
     CancellationToken cancellationToken) =>
 {
@@ -90,12 +98,17 @@ app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", async (
     }
     catch (InvalidOperationException)
     {
-        return Results.NotFound();
+        return Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status404NotFound,
+            "Disposition suggestion not found",
+            $"Return order '{returnOrderId}' does not exist.");
     }
 });
 
 app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", async (
     Guid returnOrderId,
+    HttpContext httpContext,
     ExecuteDispositionRequest request,
     ReturnDispositionExecutor executor,
     CancellationToken cancellationToken) =>
@@ -107,12 +120,17 @@ app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", async
     }
     catch (InvalidOperationException)
     {
-        return Results.NotFound();
+        return Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status404NotFound,
+            "Disposition execution not found",
+            $"Return order '{returnOrderId}' does not exist.");
     }
 });
 
 app.MapPost("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}/approval", async (
     Guid workflowInstanceId,
+    HttpContext httpContext,
     ApprovalDecisionRequest request,
     ReturnDispositionApprovalService service,
     CancellationToken cancellationToken) =>
@@ -124,21 +142,36 @@ app.MapPost("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}
     }
     catch (ArgumentException ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        return Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status400BadRequest,
+            "Unsupported approval action",
+            ex.Message);
     }
     catch (InvalidOperationException)
     {
-        return Results.NotFound();
+        return Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status404NotFound,
+            "Approval decision not found",
+            $"Workflow instance '{workflowInstanceId}' does not exist.");
     }
 });
 
 app.MapGet("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}", async (
     Guid workflowInstanceId,
+    HttpContext httpContext,
     ReturnDispositionTraceReader reader,
     CancellationToken cancellationToken) =>
 {
     var result = await reader.GetTraceAsync(workflowInstanceId, cancellationToken);
-    return result is null ? Results.NotFound() : Results.Ok(result);
+    return result is null
+        ? Program.CreateProblemResult(
+            httpContext,
+            StatusCodes.Status404NotFound,
+            "Disposition trace not found",
+            $"Workflow instance '{workflowInstanceId}' does not exist.")
+        : Results.Ok(result);
 });
 
 app.MapPost("/internal/runtime/sop/{sessionId:guid}/steps", async (
@@ -166,4 +199,21 @@ app.Run();
 
 public sealed record RuntimeFailureCountResponse(int Count);
 
-public partial class Program;
+public partial class Program
+{
+    public static IResult CreateProblemResult(
+        HttpContext httpContext,
+        int statusCode,
+        string title,
+        string detail)
+    {
+        return Results.Problem(
+            title: title,
+            detail: detail,
+            statusCode: statusCode,
+            extensions: new Dictionary<string, object?>
+            {
+                ["traceId"] = httpContext.TraceIdentifier
+            });
+    }
+}

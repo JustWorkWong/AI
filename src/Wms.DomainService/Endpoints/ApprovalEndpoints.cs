@@ -11,6 +11,7 @@ public static class ApprovalEndpoints
     {
         endpoints.MapGet("/internal/approvals/{approvalTaskId:guid}", async (
             Guid approvalTaskId,
+            HttpContext httpContext,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
@@ -23,11 +24,18 @@ public static class ApprovalEndpoints
                     x.AggregateId))
                 .SingleOrDefaultAsync(cancellationToken);
 
-            return task is null ? Results.NotFound() : Results.Ok(task);
+            return task is null
+                ? Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status404NotFound,
+                    "Approval task not found",
+                    $"Approval task '{approvalTaskId}' does not exist.")
+                : Results.Ok(task);
         });
 
         endpoints.MapPost("/internal/approvals/{approvalTaskId:guid}/actions", async (
             Guid approvalTaskId,
+            HttpContext httpContext,
             ApprovalDecisionRequest request,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
@@ -38,7 +46,11 @@ public static class ApprovalEndpoints
 
             if (task is null)
             {
-                return Results.NotFound();
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status404NotFound,
+                    "Approval task not found",
+                    $"Approval task '{approvalTaskId}' does not exist.");
             }
 
             db.ApprovalActions.Add(new ApprovalAction(
@@ -57,7 +69,11 @@ public static class ApprovalEndpoints
             }
             else
             {
-                return Results.BadRequest(new { error = "Unsupported approval action." });
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status400BadRequest,
+                    "Unsupported approval action",
+                    "Unsupported approval action.");
             }
 
             await db.SaveChangesAsync(cancellationToken);
