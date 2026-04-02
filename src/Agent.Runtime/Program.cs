@@ -5,6 +5,7 @@ using Agent.Runtime.Observability;
 using Agent.Runtime.Persistence;
 using Agent.Runtime.Services;
 using Agent.Runtime.Streaming;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 using Wms.ServiceDefaults;
@@ -44,6 +45,7 @@ builder.Services.AddScoped<ToolLoggingMiddleware>();
 builder.Services.AddSingleton<SseEventWriter>();
 builder.Services.AddScoped<ReturnDispositionAdvisor>();
 builder.Services.AddScoped<ReturnDispositionExecutor>();
+builder.Services.AddScoped<ReturnDispositionApprovalService>();
 builder.Services.AddScoped<ReturnDispositionTraceReader>();
 builder.Services.AddScoped<SopAssistService>();
 
@@ -100,6 +102,27 @@ app.MapPost("/internal/runtime/dispositions/{returnOrderId:guid}/execute", async
     {
         var result = await executor.ExecuteAsync(returnOrderId, request, cancellationToken);
         return Results.Ok(result);
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.NotFound();
+    }
+});
+
+app.MapPost("/internal/runtime/dispositions/executions/{workflowInstanceId:guid}/approval", async (
+    Guid workflowInstanceId,
+    ApprovalDecisionRequest request,
+    ReturnDispositionApprovalService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var result = await service.DecideAsync(workflowInstanceId, request, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
     }
     catch (InvalidOperationException)
     {

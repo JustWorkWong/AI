@@ -28,6 +28,11 @@ export interface DispositionExecutionResultDto {
   outcome: string | null;
 }
 
+export interface ApprovalDecisionRequest {
+  action: "Approve" | "Reject";
+  actor: string;
+}
+
 export interface ToolInvocationDto {
   toolInvocationId: string;
   toolName: string;
@@ -99,6 +104,19 @@ export async function getDispositionTrace(
 ): Promise<DispositionExecutionTraceDto> {
   const response = await fetch(`/api/returns/workbench/executions/${workflowInstanceId}`);
   return readJson<DispositionExecutionTraceDto>(response);
+}
+
+export async function decideDispositionApproval(
+  workflowInstanceId: string,
+  request: ApprovalDecisionRequest
+): Promise<DispositionExecutionResultDto> {
+  const response = await fetch(`/api/returns/workbench/executions/${workflowInstanceId}/approval`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+
+  return readJson<DispositionExecutionResultDto>(response);
 }
 
 export async function advanceSopStep(

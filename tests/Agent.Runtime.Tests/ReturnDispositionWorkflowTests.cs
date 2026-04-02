@@ -15,7 +15,10 @@ public sealed class ReturnDispositionWorkflowTests
         Assert.NotNull(result.ApprovalReferenceId);
         Assert.Contains(
             fixture.Context.Checkpoints,
-            x => x.CheckpointType == "approval" && x.Value is Guid);
+            x => x.CheckpointType == "approval"
+                && x.Value is ApprovalCheckpointState state
+                && state.Outcome == "Scrap"
+                && state.IdempotencyKey == "idem-001");
     }
 
     private sealed class ReturnDispositionFixture(bool approvalRequired)

@@ -24,4 +24,14 @@ public sealed class ApprovalTask
     public Guid AggregateId { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
+
+    public void MarkApproved()
+    {
+        Status = "Approved";
+    }
+
+    public void MarkRejected()
+    {
+        Status = "Rejected";
+    }
 }

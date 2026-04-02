@@ -12,10 +12,10 @@ using Shared.Contracts.Sop;
 
 namespace Ops.Bff.Tests;
 
-public sealed class ReturnDispositionExecutionEndpointsTests
+public sealed class ReturnDispositionApprovalEndpointsTests
 {
     [Fact]
-    public async Task Post_execute_should_return_runtime_execution_result()
+    public async Task Post_approval_should_return_completed_runtime_result()
     {
         await using var app = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -31,18 +31,17 @@ public sealed class ReturnDispositionExecutionEndpointsTests
             });
 
         var client = app.CreateClient();
-        var returnOrderId = Guid.NewGuid();
+        var workflowInstanceId = Guid.NewGuid();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/returns/workbench/{returnOrderId}/execute",
-            new ExecuteDispositionRequest("idem-bff"));
+            $"/api/returns/workbench/executions/{workflowInstanceId}/approval",
+            new ApprovalDecisionRequest("Approve", "manager-1"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var payload = await response.Content.ReadFromJsonAsync<DispositionExecutionResultDto>();
         Assert.NotNull(payload);
         Assert.Equal("Completed", payload!.Status);
-        Assert.Equal("Resell", payload.Outcome);
     }
 
     private sealed class StubDomainServiceClient : IDomainServiceClient
@@ -60,26 +59,21 @@ public sealed class ReturnDispositionExecutionEndpointsTests
         public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
             Task.FromResult<DispositionSuggestionDto?>(null);
 
-        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
-            Guid returnOrderId,
-            ExecuteDispositionRequest request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(new DispositionExecutionResultDto(
-                Guid.NewGuid(),
-                "Completed",
-                null,
-                "Resell"));
+        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(Guid returnOrderId, ExecuteDispositionRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionResultDto?>(null);
 
-        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
-            Guid workflowInstanceId,
-            CancellationToken cancellationToken) =>
+        public Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(Guid workflowInstanceId, CancellationToken cancellationToken) =>
             Task.FromResult<DispositionExecutionTraceDto?>(null);
 
         public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
             Guid workflowInstanceId,
             ApprovalDecisionRequest request,
             CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionExecutionResultDto?>(null);
+            Task.FromResult<DispositionExecutionResultDto?>(new DispositionExecutionResultDto(
+                workflowInstanceId,
+                "Completed",
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Scrap"));
 
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(Guid sessionId, AdvanceSopStepRequest request, CancellationToken cancellationToken) =>
             Task.FromResult<SopExecutionViewDto?>(null);

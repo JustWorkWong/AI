@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ops.Bff.Clients;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -62,6 +63,12 @@ public sealed class DashboardEndpointsTests
             Guid workflowInstanceId,
             CancellationToken cancellationToken) =>
             Task.FromResult<DispositionExecutionTraceDto?>(null);
+
+        public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
+            Guid workflowInstanceId,
+            ApprovalDecisionRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionResultDto?>(null);
 
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
             Guid sessionId,

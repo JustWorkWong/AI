@@ -4,7 +4,15 @@ public sealed record ApprovalTaskDto(
     Guid ApprovalTaskId,
     string ApprovalType,
     string Status,
-    string RequestedBy);
+    Guid AggregateId);
+
+public sealed record ApprovalDecisionRequest(
+    string Action,
+    string Actor);
+
+public sealed record ApprovalDecisionCommand(
+    string Action,
+    string Actor);
 
 public sealed record SyncUserRequest(
     string ExternalSubject,

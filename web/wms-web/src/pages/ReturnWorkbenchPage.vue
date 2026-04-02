@@ -32,6 +32,22 @@
           <button :disabled="isExecuting" @click="execute">
             {{ isExecuting ? "执行中..." : "执行处置" }}
           </button>
+          <button
+            v-if="canApprove"
+            class="secondary"
+            :disabled="isApproving"
+            @click="decideApproval('Approve')"
+          >
+            {{ isApproving ? "处理中..." : "审批通过" }}
+          </button>
+          <button
+            v-if="canApprove"
+            class="secondary danger"
+            :disabled="isApproving"
+            @click="decideApproval('Reject')"
+          >
+            {{ isApproving ? "处理中..." : "驳回" }}
+          </button>
           <button class="secondary">人工覆写</button>
         </div>
       </article>
@@ -69,12 +85,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import {
+  decideDispositionApproval,
   executeDisposition,
   getDispositionTrace,
   getReturnWorkbench,
+  type ApprovalDecisionRequest,
   type DispositionExecutionTraceDto,
   type DispositionExecutionResultDto,
   type DispositionSuggestionDto,
@@ -87,7 +105,38 @@ const suggestion = ref<DispositionSuggestionDto | null>(null);
 const executionResult = ref<DispositionExecutionResultDto | null>(null);
 const executionTrace = ref<DispositionExecutionTraceDto | null>(null);
 const isExecuting = ref(false);
+const isApproving = ref(false);
 const errorMessage = ref("");
+const approvalActor = "manager-web";
+
+function syncPageState(result: DispositionExecutionResultDto) {
+  executionResult.value = result;
+
+  if (suggestion.value) {
+    suggestion.value = {
+      ...suggestion.value,
+      approvalStatus:
+        result.status === "WaitingForApproval"
+          ? "Pending"
+          : result.status === "Rejected"
+            ? "Rejected"
+            : "Completed",
+      suggestedOutcome: result.outcome ?? suggestion.value.suggestedOutcome
+    };
+  }
+
+  if (order.value && result.status === "Completed") {
+    order.value = {
+      ...order.value,
+      status: "Disposed"
+    };
+  }
+}
+
+const canApprove = computed(() =>
+  executionResult.value?.status === "WaitingForApproval" &&
+  executionResult.value.approvalReferenceId !== null
+);
 
 async function loadWorkbench() {
   const payload = await getReturnWorkbench(String(route.params.id));
@@ -105,27 +154,35 @@ async function execute() {
       `web-${crypto.randomUUID()}`
     );
 
-    executionResult.value = result;
+    syncPageState(result);
     executionTrace.value = await getDispositionTrace(result.workflowInstanceId);
-
-    if (suggestion.value) {
-      suggestion.value = {
-        ...suggestion.value,
-        approvalStatus: result.status === "WaitingForApproval" ? "Pending" : "Completed",
-        suggestedOutcome: result.outcome ?? suggestion.value.suggestedOutcome
-      };
-    }
-
-    if (order.value && result.status === "Completed") {
-      order.value = {
-        ...order.value,
-        status: "Disposed"
-      };
-    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "执行失败";
   } finally {
     isExecuting.value = false;
+  }
+}
+
+async function decideApproval(action: ApprovalDecisionRequest["action"]) {
+  if (!executionResult.value) {
+    return;
+  }
+
+  isApproving.value = true;
+  errorMessage.value = "";
+
+  try {
+    const result = await decideDispositionApproval(executionResult.value.workflowInstanceId, {
+      action,
+      actor: approvalActor
+    });
+
+    syncPageState(result);
+    executionTrace.value = await getDispositionTrace(result.workflowInstanceId);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "审批失败";
+  } finally {
+    isApproving.value = false;
   }
 }
 

@@ -42,7 +42,14 @@ public sealed class ReturnDispositionWorkflow
                 new RequestDispositionApprovalToolInput(input.ReturnOrderId, suggestion.Outcome),
                 cancellationToken);
 
-            await context.CreateCheckpointAsync("approval", approval.ReferenceId, cancellationToken);
+            await context.CreateCheckpointAsync(
+                "approval",
+                new ApprovalCheckpointState(
+                    approval.ReferenceId,
+                    input.ReturnOrderId,
+                    suggestion.Outcome,
+                    input.IdempotencyKey),
+                cancellationToken);
             return WorkflowResult.WaitingForApproval(approval.ReferenceId);
         }
 

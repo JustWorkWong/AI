@@ -55,6 +55,7 @@ app.MapPost("/internal/auth/sync", async (
 });
 
 app.MapDispositionEndpoints();
+app.MapApprovalEndpoints();
 app.MapAttachmentEndpoints();
 app.MapReturnReadEndpoints();
 app.MapSopPublishEndpoints();

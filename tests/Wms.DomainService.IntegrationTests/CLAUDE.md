@@ -9,6 +9,7 @@
 - `ReturnReadEndpointsTests.cs`: 校验退货单读取与历史案例投影。
 - `SopReadEndpointsTests.cs`: 校验 SOP 候选检索与切块读取。
 - `SopPublishEndpointsTests.cs`: 校验 SOP 发布后可被候选与切块查询命中。
+- `ApprovalEndpointsTests.cs`: 校验审批查询与审批动作闭环。
 
 ## 原则
 - 集成测试验证 HTTP + 持久化边界，不做纯规则断言。

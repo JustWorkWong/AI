@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 
 namespace Agent.Runtime.Clients;
@@ -6,6 +7,8 @@ namespace Agent.Runtime.Clients;
 public interface IDomainDispositionClient
 {
     Task<Guid> RequestApprovalAsync(RequestDispositionApproval command, CancellationToken cancellationToken);
+
+    Task DecideApprovalAsync(Guid approvalTaskId, ApprovalDecisionCommand command, CancellationToken cancellationToken);
 
     Task ApplyDispositionAsync(ApplyDispositionCommand command, CancellationToken cancellationToken);
 }
@@ -31,6 +34,19 @@ public sealed class DomainDispositionClient(HttpClient httpClient) : IDomainDisp
 
         var approvalIdSegment = location.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
         return Guid.Parse(approvalIdSegment);
+    }
+
+    public async Task DecideApprovalAsync(
+        Guid approvalTaskId,
+        ApprovalDecisionCommand command,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            $"/internal/approvals/{approvalTaskId}/actions",
+            new ApprovalDecisionRequest(command.Action, command.Actor),
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task ApplyDispositionAsync(

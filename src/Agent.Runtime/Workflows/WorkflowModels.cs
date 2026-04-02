@@ -18,6 +18,12 @@ public sealed record DispositionSuggestion(bool RequiresApproval, string Outcome
 
 public sealed record ApprovalReference(Guid ReferenceId);
 
+public sealed record ApprovalCheckpointState(
+    Guid ApprovalReferenceId,
+    Guid ReturnOrderId,
+    string Outcome,
+    string IdempotencyKey);
+
 public sealed record WorkflowResult(string Status, Guid? ApprovalReferenceId, string? Outcome)
 {
     public static WorkflowResult WaitingForApproval(Guid approvalReferenceId) =>

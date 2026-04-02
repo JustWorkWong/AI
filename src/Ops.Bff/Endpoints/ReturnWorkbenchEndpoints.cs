@@ -1,4 +1,5 @@
 using Ops.Bff.Clients;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 
 namespace Ops.Bff.Endpoints;
@@ -41,6 +42,27 @@ public static class ReturnWorkbenchEndpoints
         {
             var result = await runtimeClient.GetDispositionTraceAsync(workflowInstanceId, cancellationToken);
             return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
+        endpoints.MapPost("/api/returns/workbench/executions/{workflowInstanceId:guid}/approval", async (
+            Guid workflowInstanceId,
+            ApprovalDecisionRequest request,
+            IAgentRuntimeClient runtimeClient,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var result = await runtimeClient.DecideDispositionApprovalAsync(
+                    workflowInstanceId,
+                    request,
+                    cancellationToken);
+
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
         });
 
         return endpoints;

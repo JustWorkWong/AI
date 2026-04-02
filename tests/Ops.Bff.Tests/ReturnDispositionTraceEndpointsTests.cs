@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ops.Bff.Clients;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -78,6 +79,12 @@ public sealed class ReturnDispositionTraceEndpointsTests
                 [
                     new WorkflowCheckpointDto(Guid.NewGuid(), 1, "approval", "{\"approvalReferenceId\":\"44444444-4444-4444-4444-444444444444\"}")
                 ]));
+
+        public Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
+            Guid workflowInstanceId,
+            ApprovalDecisionRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionResultDto?>(null);
 
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(Guid sessionId, AdvanceSopStepRequest request, CancellationToken cancellationToken) =>
             Task.FromResult<SopExecutionViewDto?>(null);

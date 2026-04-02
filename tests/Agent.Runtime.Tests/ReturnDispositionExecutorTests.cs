@@ -3,6 +3,7 @@ using Agent.Runtime.Observability;
 using Agent.Runtime.Persistence;
 using Agent.Runtime.Services;
 using Microsoft.EntityFrameworkCore;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -96,6 +97,9 @@ public sealed class ReturnDispositionExecutorTests
 
         public Task<Guid> RequestApprovalAsync(RequestDispositionApproval command, CancellationToken cancellationToken) =>
             Task.FromResult(Guid.NewGuid());
+
+        public Task DecideApprovalAsync(Guid approvalTaskId, ApprovalDecisionCommand command, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task ApplyDispositionAsync(ApplyDispositionCommand command, CancellationToken cancellationToken)
         {

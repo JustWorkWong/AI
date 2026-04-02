@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Shared.Contracts.Approvals;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
@@ -17,6 +18,11 @@ public interface IAgentRuntimeClient
 
     Task<DispositionExecutionTraceDto?> GetDispositionTraceAsync(
         Guid workflowInstanceId,
+        CancellationToken cancellationToken);
+
+    Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
+        Guid workflowInstanceId,
+        ApprovalDecisionRequest request,
         CancellationToken cancellationToken);
 
     Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
@@ -77,6 +83,30 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
 
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<DispositionExecutionTraceDto>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<DispositionExecutionResultDto?> DecideDispositionApprovalAsync(
+        Guid workflowInstanceId,
+        ApprovalDecisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            $"/internal/runtime/dispositions/executions/{workflowInstanceId}/approval",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            throw new ArgumentException("Runtime rejected the approval decision request.", nameof(request));
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DispositionExecutionResultDto>(cancellationToken: cancellationToken);
     }
 
     public async Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
