@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
+using Shared.Contracts.Approvals;
 
 namespace Auth.Service.Clients;
 
@@ -14,6 +15,4 @@ public sealed class DomainUserSyncClient(HttpClient httpClient)
 
         await httpClient.PostAsJsonAsync("/internal/auth/sync", payload, cancellationToken);
     }
-
-    private sealed record SyncUserRequest(string SubjectId, string UserName, string DisplayName);
 }
