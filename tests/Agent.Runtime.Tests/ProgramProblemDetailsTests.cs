@@ -128,6 +128,17 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
         await AssertProblemAsync(response, HttpStatusCode.NotFound, 404);
     }
 
+    [Fact]
+    public async Task Test_fault_endpoint_should_return_problem_details_with_trace_id()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+
+        var response = await client.GetAsync("/internal/test/fault");
+
+        await AssertProblemAsync(response, HttpStatusCode.InternalServerError, 500);
+    }
+
     private async Task<RuntimeApiFactory> CreateAppAsync(Action<AgentRuntimeDbContext>? seed = null)
     {
         var app = new RuntimeApiFactory(_fixture.ConnectionString);

@@ -23,9 +23,18 @@ builder.Services.AddDbContext<WmsDbContext>(options =>
 });
 
 builder.Services.AddHealthChecks();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    };
+});
 builder.Services.AddSingleton<IObjectStorage, NoOpObjectStorage>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -64,6 +73,14 @@ app.MapReturnReadEndpoints();
 app.MapSopPublishEndpoints();
 app.MapSopReadEndpoints();
 app.MapWmsDefaultEndpoints();
+
+if (app.Environment.IsEnvironment("Testing"))
+{
+    app.MapGet("/internal/test/fault", () =>
+    {
+        throw new InvalidOperationException("Test fault");
+    });
+}
 
 app.Run();
 

@@ -26,6 +26,13 @@ builder.Services.AddDbContext<AgentRuntimeDbContext>(options =>
 });
 
 builder.Services.AddHealthChecks();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    };
+});
 builder.Services.AddHttpClient<IDomainKnowledgeClient, DomainKnowledgeClient>(client =>
 {
     client.BaseAddress = new Uri(
@@ -50,6 +57,8 @@ builder.Services.AddScoped<ReturnDispositionTraceReader>();
 builder.Services.AddScoped<SopAssistService>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -114,6 +123,15 @@ app.MapGet("/internal/runtime/sop/{sessionId:guid}/events", async (
 });
 
 app.MapWmsDefaultEndpoints();
+
+if (app.Environment.IsEnvironment("Testing"))
+{
+    app.MapGet("/internal/test/fault", () =>
+    {
+        throw new InvalidOperationException("Test fault");
+    });
+}
+
 app.Run();
 
 public sealed record RuntimeFailureCountResponse(int Count);
