@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Shared.Contracts.Sop;
 using Wms.DomainService.Persistence;
@@ -47,6 +48,27 @@ public sealed class SopReadEndpointsTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task Search_sop_candidates_should_return_problem_details_for_blank_operation_code()
+    {
+        await using var app = await TestAppFactory.CreateDomainServiceAsync(_fixture.ConnectionString);
+        var client = app.CreateClient();
+        var stepCode = $"INSPECT-{Guid.NewGuid():N}";
+
+        var response = await client.GetAsync($"/internal/sop/candidates?operationCode=&stepCode={stepCode}");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(422, document.RootElement.GetProperty("status").GetInt32());
+        Assert.False(document.RootElement.TryGetProperty("error", out _));
+        Assert.True(document.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    [Fact]
     public async Task Retrieve_sop_chunks_should_return_chunks_for_requested_candidates()
     {
         var documentId = Guid.NewGuid();
@@ -76,5 +98,36 @@ public sealed class SopReadEndpointsTests : IClassFixture<PostgresFixture>
         Assert.Single(payload!);
         Assert.Equal(chunkId, payload[0].ChunkId);
         Assert.Equal(stepCode, payload[0].StepCode);
+    }
+
+    [Fact]
+    public async Task Retrieve_sop_chunks_should_return_problem_details_for_blank_step_code()
+    {
+        var documentId = Guid.NewGuid();
+        var operationCode = $"RETURNS-{Guid.NewGuid():N}";
+
+        await using var app = await TestAppFactory.CreateDomainServiceAsync(_fixture.ConnectionString);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+            db.SopDocuments.Add(new SopDocument(documentId, "SOP-RET-004", operationCode, "v1", "退货核对"));
+            await db.SaveChangesAsync();
+        }
+
+        var client = app.CreateClient();
+        var query = new RetrieveSopChunksQuery(operationCode, "", [documentId]);
+
+        var response = await client.PostAsJsonAsync("/internal/sop/chunks/search", query);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(422, document.RootElement.GetProperty("status").GetInt32());
+        Assert.False(document.RootElement.TryGetProperty("error", out _));
+        Assert.True(document.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
     }
 }

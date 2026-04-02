@@ -47,6 +47,27 @@ public sealed class ApprovalEndpointsTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task Get_missing_approval_task_should_return_problem_details_with_trace_id()
+    {
+        await using var app = await TestAppFactory.CreateDomainServiceAsync(_fixture.ConnectionString);
+        var client = app.CreateClient();
+        var approvalTaskId = Guid.NewGuid();
+
+        var response = await client.GetAsync($"/internal/approvals/{approvalTaskId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(404, document.RootElement.GetProperty("status").GetInt32());
+        Assert.False(document.RootElement.TryGetProperty("error", out _));
+        Assert.True(document.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    [Fact]
     public async Task Post_approval_action_should_return_conflict_when_task_is_not_pending()
     {
         var approvalTaskId = Guid.NewGuid();

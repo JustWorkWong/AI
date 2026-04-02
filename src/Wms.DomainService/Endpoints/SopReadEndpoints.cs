@@ -11,9 +11,19 @@ public static class SopReadEndpoints
         endpoints.MapGet("/internal/sop/candidates", async (
             string operationCode,
             string stepCode,
+            HttpContext httpContext,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
+            if (string.IsNullOrWhiteSpace(operationCode) || string.IsNullOrWhiteSpace(stepCode))
+            {
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Invalid SOP lookup",
+                    "operationCode and stepCode are required.");
+            }
+
             var payload = await (
                 from document in db.SopDocuments
                 join chunk in db.SopChunks on document.Id equals chunk.DocumentId
@@ -34,9 +44,19 @@ public static class SopReadEndpoints
 
         endpoints.MapPost("/internal/sop/chunks/search", async (
             RetrieveSopChunksQuery query,
+            HttpContext httpContext,
             WmsDbContext db,
             CancellationToken cancellationToken) =>
         {
+            if (string.IsNullOrWhiteSpace(query.OperationCode) || string.IsNullOrWhiteSpace(query.StepCode))
+            {
+                return Program.CreateProblemResult(
+                    httpContext,
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Invalid SOP lookup",
+                    "operationCode and stepCode are required.");
+            }
+
             if (query.CandidateDocumentIds.Count == 0)
             {
                 return Results.Ok(Array.Empty<SopChunkDto>());
