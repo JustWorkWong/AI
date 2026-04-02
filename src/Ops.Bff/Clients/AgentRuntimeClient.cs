@@ -10,6 +10,11 @@ public interface IAgentRuntimeClient
 
     Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken);
 
+    Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
+        Guid returnOrderId,
+        ExecuteDispositionRequest request,
+        CancellationToken cancellationToken);
+
     Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
         Guid sessionId,
         AdvanceSopStepRequest request,
@@ -33,6 +38,25 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
         httpClient.GetFromJsonAsync<DispositionSuggestionDto>(
             $"/internal/runtime/dispositions/{returnOrderId}",
             cancellationToken);
+
+    public async Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
+        Guid returnOrderId,
+        ExecuteDispositionRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            $"/internal/runtime/dispositions/{returnOrderId}/execute",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DispositionExecutionResultDto>(cancellationToken: cancellationToken);
+    }
 
     public async Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
         Guid sessionId,

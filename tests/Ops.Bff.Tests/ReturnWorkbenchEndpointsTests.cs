@@ -70,6 +70,12 @@ public sealed class ReturnWorkbenchEndpointsTests
                 [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
                 "Pending"));
 
+        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
+            Guid returnOrderId,
+            ExecuteDispositionRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionResultDto?>(null);
+
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
             Guid sessionId,
             AdvanceSopStepRequest request,

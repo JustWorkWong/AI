@@ -6,6 +6,7 @@
 - `DomainServiceClientTests.cs`: 校验下游 404 不会被 BFF 放大成 500。
 - `ReturnWorkbenchEndpointsTests.cs`: 校验退货工作台聚合视图。
 - `SseBridgeTests.cs`: 校验 SSE 事件桥接。
+- `ReturnDispositionExecutionEndpointsTests.cs`: 校验 BFF 透传退货处置执行命令。
 
 ## 原则
 - 这里优先测页面聚合行为，不测领域规则。

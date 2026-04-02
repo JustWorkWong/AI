@@ -2,7 +2,7 @@
 
 ## 文件
 - `DashboardEndpoints.cs`: 首页工作台聚合接口。
-- `ReturnWorkbenchEndpoints.cs`: 退货工作台聚合接口。
+- `ReturnWorkbenchEndpoints.cs`: 退货工作台聚合接口与执行入口。
 - `SopAssistEndpoints.cs`: SOP 推进与 SSE 事件桥接。
 
 ## 原则

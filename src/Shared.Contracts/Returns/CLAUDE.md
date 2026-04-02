@@ -1,7 +1,7 @@
 # Returns
 
 ## 文件
-- `DispositionDtos.cs`: 退货单视图、历史案例、workbench 聚合、处置建议、审批请求、落单命令契约。
+- `DispositionDtos.cs`: 退货单视图、历史案例、workbench 聚合、处置建议、执行请求、审批请求、落单命令契约。
 
 ## 原则
 - 这里只描述跨服务传输的数据，不承载处置规则。

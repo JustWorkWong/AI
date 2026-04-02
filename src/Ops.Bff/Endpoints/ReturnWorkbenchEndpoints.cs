@@ -24,6 +24,16 @@ public static class ReturnWorkbenchEndpoints
             return Results.Ok(new ReturnWorkbenchViewDto(order, suggestion));
         });
 
+        endpoints.MapPost("/api/returns/workbench/{returnOrderId:guid}/execute", async (
+            Guid returnOrderId,
+            ExecuteDispositionRequest request,
+            IAgentRuntimeClient runtimeClient,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await runtimeClient.ExecuteDispositionAsync(returnOrderId, request, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
         return endpoints;
     }
 }

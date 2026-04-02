@@ -21,6 +21,14 @@ public sealed record DispositionSuggestionDto(
     IReadOnlyList<CitationDto> Citations,
     string ApprovalStatus);
 
+public sealed record ExecuteDispositionRequest(string IdempotencyKey);
+
+public sealed record DispositionExecutionResultDto(
+    Guid WorkflowInstanceId,
+    string Status,
+    Guid? ApprovalReferenceId,
+    string? Outcome);
+
 public sealed record RequestDispositionApproval(
     Guid ReturnOrderId,
     string SuggestedOutcome);

@@ -58,6 +58,12 @@ public sealed class SseBridgeTests
         public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
             Task.FromResult<DispositionSuggestionDto?>(null);
 
+        public Task<DispositionExecutionResultDto?> ExecuteDispositionAsync(
+            Guid returnOrderId,
+            ExecuteDispositionRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<DispositionExecutionResultDto?>(null);
+
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
             Guid sessionId,
             AdvanceSopStepRequest request,
