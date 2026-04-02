@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
 namespace Ops.Bff.Clients;
@@ -7,9 +8,9 @@ public interface IAgentRuntimeClient
 {
     Task<int> GetFailureCountAsync(CancellationToken cancellationToken);
 
-    Task<object?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken);
+    Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken);
 
-    Task<object?> AdvanceSopSessionAsync(
+    Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
         Guid sessionId,
         AdvanceSopStepRequest request,
         CancellationToken cancellationToken);
@@ -28,12 +29,12 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
         return result ?? 0;
     }
 
-    public Task<object?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-        httpClient.GetFromJsonAsync<object>(
+    public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
+        httpClient.GetFromJsonAsync<DispositionSuggestionDto>(
             $"/internal/runtime/dispositions/{returnOrderId}",
             cancellationToken);
 
-    public async Task<object?> AdvanceSopSessionAsync(
+    public async Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
         Guid sessionId,
         AdvanceSopStepRequest request,
         CancellationToken cancellationToken)
@@ -43,9 +44,19 @@ public sealed class AgentRuntimeClient(HttpClient httpClient) : IAgentRuntimeCli
             request,
             cancellationToken);
 
-        return await response.Content.ReadFromJsonAsync<object>(cancellationToken: cancellationToken);
+        return await response.Content.ReadFromJsonAsync<SopExecutionViewDto>(cancellationToken: cancellationToken);
     }
 
-    public Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+    public async Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken)
+    {
+        using var upstream = await httpClient.GetAsync(
+            $"/internal/runtime/sop/{sessionId}/events",
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        upstream.EnsureSuccessStatusCode();
+        response.StatusCode = StatusCodes.Status200OK;
+        response.ContentType = upstream.Content.Headers.ContentType?.MediaType ?? "text/event-stream";
+        await upstream.Content.CopyToAsync(response.Body, cancellationToken);
+    }
 }

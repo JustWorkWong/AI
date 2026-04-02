@@ -1,19 +1,21 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ops.Bff.Clients;
+using Shared.Contracts.Common;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
 
 namespace Ops.Bff.Tests;
 
-public sealed class DashboardEndpointsTests
+public sealed class ReturnWorkbenchEndpointsTests
 {
     [Fact]
-    public async Task Get_dashboard_should_return_pending_counts()
+    public async Task Get_return_workbench_should_return_suggestion_and_approval_summary()
     {
         await using var app = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -29,10 +31,16 @@ public sealed class DashboardEndpointsTests
             });
 
         var client = app.CreateClient();
+        var returnOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        var response = await client.GetAsync("/api/dashboard");
+        var response = await client.GetAsync($"/api/returns/workbench/{returnOrderId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<ReturnWorkbenchViewDto>();
+        Assert.NotNull(payload);
+        Assert.Equal(returnOrderId, payload!.Order.ReturnOrderId);
+        Assert.Equal("Pending", payload.Suggestion.ApprovalStatus);
     }
 
     private sealed class StubDomainServiceClient : IDomainServiceClient
@@ -41,7 +49,12 @@ public sealed class DashboardEndpointsTests
             Task.FromResult(3);
 
         public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<ReturnOrderDto?>(null);
+            Task.FromResult<ReturnOrderDto?>(new ReturnOrderDto(
+                returnOrderId,
+                "RMA-001",
+                "Broken",
+                "PendingInspection",
+                "Damaged shell"));
     }
 
     private sealed class StubAgentRuntimeClient : IAgentRuntimeClient
@@ -50,7 +63,12 @@ public sealed class DashboardEndpointsTests
             Task.FromResult(1);
 
         public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult<DispositionSuggestionDto?>(null);
+            Task.FromResult<DispositionSuggestionDto?>(new DispositionSuggestionDto(
+                returnOrderId,
+                "Scrap",
+                "High",
+                [new CitationDto("sop", "doc-1", "v1", "Broken items should be scrapped.")],
+                "Pending"));
 
         public Task<SopExecutionViewDto?> AdvanceSopSessionAsync(
             Guid sessionId,

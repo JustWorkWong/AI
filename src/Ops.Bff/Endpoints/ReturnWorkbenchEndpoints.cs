@@ -1,0 +1,29 @@
+using Ops.Bff.Clients;
+using Shared.Contracts.Returns;
+
+namespace Ops.Bff.Endpoints;
+
+public static class ReturnWorkbenchEndpoints
+{
+    public static IEndpointRouteBuilder MapReturnWorkbenchEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapGet("/api/returns/workbench/{returnOrderId:guid}", async (
+            Guid returnOrderId,
+            IDomainServiceClient domainClient,
+            IAgentRuntimeClient runtimeClient,
+            CancellationToken cancellationToken) =>
+        {
+            var order = await domainClient.GetReturnOrderAsync(returnOrderId, cancellationToken);
+            var suggestion = await runtimeClient.GetDispositionSuggestionAsync(returnOrderId, cancellationToken);
+
+            if (order is null || suggestion is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(new ReturnWorkbenchViewDto(order, suggestion));
+        });
+
+        return endpoints;
+    }
+}

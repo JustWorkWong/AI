@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -10,10 +11,10 @@ using Shared.Contracts.Sop;
 
 namespace Ops.Bff.Tests;
 
-public sealed class DashboardEndpointsTests
+public sealed class SseBridgeTests
 {
     [Fact]
-    public async Task Get_dashboard_should_return_pending_counts()
+    public async Task Get_sop_events_should_bridge_upstream_sse_payload()
     {
         await using var app = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -29,16 +30,21 @@ public sealed class DashboardEndpointsTests
             });
 
         var client = app.CreateClient();
+        var sessionId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-        var response = await client.GetAsync("/api/dashboard");
+        var response = await client.GetAsync($"/api/sop/sessions/{sessionId}/events");
+        var payload = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("event: heartbeat", payload);
+        Assert.Contains(sessionId.ToString(), payload);
     }
 
     private sealed class StubDomainServiceClient : IDomainServiceClient
     {
         public Task<int> GetPendingApprovalsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(3);
+            Task.FromResult(0);
 
         public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
             Task.FromResult<ReturnOrderDto?>(null);
@@ -47,7 +53,7 @@ public sealed class DashboardEndpointsTests
     private sealed class StubAgentRuntimeClient : IAgentRuntimeClient
     {
         public Task<int> GetFailureCountAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(1);
+            Task.FromResult(0);
 
         public Task<DispositionSuggestionDto?> GetDispositionSuggestionAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
             Task.FromResult<DispositionSuggestionDto?>(null);
@@ -58,7 +64,14 @@ public sealed class DashboardEndpointsTests
             CancellationToken cancellationToken) =>
             Task.FromResult<SopExecutionViewDto?>(null);
 
-        public Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public async Task ProxySseAsync(Guid sessionId, HttpResponse response, CancellationToken cancellationToken)
+        {
+            response.StatusCode = StatusCodes.Status200OK;
+            response.ContentType = "text/event-stream";
+
+            await response.Body.WriteAsync(
+                Encoding.UTF8.GetBytes($"event: heartbeat\ndata: {{\"sessionId\":\"{sessionId}\"}}\n\n"),
+                cancellationToken);
+        }
     }
 }

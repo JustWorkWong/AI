@@ -29,6 +29,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapDashboardEndpoints();
+app.MapReturnWorkbenchEndpoints();
+app.MapSopAssistEndpoints();
 app.MapWmsDefaultEndpoints();
 
 app.Run();

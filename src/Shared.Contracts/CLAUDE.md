@@ -5,6 +5,7 @@
 - `Returns/`: 退货质检与处置相关 DTO。
 - `Sop/`: SOP 辅助执行相关 DTO。
 - `Approvals/`: 审批与用户同步契约。
+- `Realtime/`: AG-UI 与 SSE 事件契约。
 
 ## 原则
 - 这里只放契约，不放默认值，不放客户端实现。

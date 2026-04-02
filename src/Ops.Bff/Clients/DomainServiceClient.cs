@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Shared.Contracts.Returns;
 
 namespace Ops.Bff.Clients;
 
@@ -6,7 +7,7 @@ public interface IDomainServiceClient
 {
     Task<int> GetPendingApprovalsAsync(CancellationToken cancellationToken);
 
-    Task<object?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken);
+    Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken);
 }
 
 public sealed class DomainServiceClient(HttpClient httpClient) : IDomainServiceClient
@@ -20,8 +21,8 @@ public sealed class DomainServiceClient(HttpClient httpClient) : IDomainServiceC
         return result ?? 0;
     }
 
-    public Task<object?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-        httpClient.GetFromJsonAsync<object>(
+    public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
+        httpClient.GetFromJsonAsync<ReturnOrderDto>(
             $"/internal/returns/{returnOrderId}",
             cancellationToken);
 }

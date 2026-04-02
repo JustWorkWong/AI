@@ -2,6 +2,13 @@ using Shared.Contracts.Common;
 
 namespace Shared.Contracts.Returns;
 
+public sealed record ReturnOrderDto(
+    Guid ReturnOrderId,
+    string ReturnCode,
+    string QualityState,
+    string Status,
+    string Notes);
+
 public sealed record DispositionSuggestionDto(
     Guid ReturnOrderId,
     string SuggestedOutcome,
@@ -17,3 +24,7 @@ public sealed record ApplyDispositionCommand(
     Guid ReturnOrderId,
     string Outcome,
     string IdempotencyKey);
+
+public sealed record ReturnWorkbenchViewDto(
+    ReturnOrderDto Order,
+    DispositionSuggestionDto Suggestion);
