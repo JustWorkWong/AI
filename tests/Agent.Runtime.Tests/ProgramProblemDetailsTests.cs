@@ -4,6 +4,7 @@ using System.Text.Json;
 using Agent.Runtime.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Shared.Contracts.Approvals;
+using Shared.Contracts.Returns;
 
 namespace Agent.Runtime.Tests;
 
@@ -87,6 +88,44 @@ public sealed class ProgramProblemDetailsTests : IClassFixture<PostgresFixture>
             new ApprovalDecisionRequest("Maybe", "manager-1"));
 
         await AssertProblemAsync(response, HttpStatusCode.UnprocessableEntity, 422);
+    }
+
+    [Fact]
+    public async Task Disposition_suggestion_endpoint_should_return_404_problem_details_for_missing_return()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+        var missingReturnId = Guid.NewGuid();
+
+        var response = await client.GetAsync($"/internal/runtime/dispositions/{missingReturnId}");
+
+        await AssertProblemAsync(response, HttpStatusCode.NotFound, 404);
+    }
+
+    [Fact]
+    public async Task Disposition_execute_endpoint_should_return_404_problem_details_for_missing_return()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+        var missingReturnId = Guid.NewGuid();
+
+        var response = await client.PostAsJsonAsync(
+            $"/internal/runtime/dispositions/{missingReturnId}/execute",
+            new ExecuteDispositionRequest("idem-missing"));
+
+        await AssertProblemAsync(response, HttpStatusCode.NotFound, 404);
+    }
+
+    [Fact]
+    public async Task Disposition_trace_endpoint_should_return_404_problem_details_for_missing_workflow()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+        var missingWorkflowId = Guid.NewGuid();
+
+        var response = await client.GetAsync($"/internal/runtime/dispositions/executions/{missingWorkflowId}");
+
+        await AssertProblemAsync(response, HttpStatusCode.NotFound, 404);
     }
 
     private async Task<RuntimeApiFactory> CreateAppAsync(Action<AgentRuntimeDbContext>? seed = null)
