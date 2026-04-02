@@ -3,6 +3,9 @@
 ## 文件
 - `Ops.Bff.Tests.csproj`: BFF 测试项目。
 - `DashboardEndpointsTests.cs`: 校验首页聚合接口不会退化。
+- `DomainServiceClientTests.cs`: 校验下游 404 不会被 BFF 放大成 500。
+- `ReturnWorkbenchEndpointsTests.cs`: 校验退货工作台聚合视图。
+- `SseBridgeTests.cs`: 校验 SSE 事件桥接。
 
 ## 原则
 - 这里优先测页面聚合行为，不测领域规则。

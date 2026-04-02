@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Agent.Runtime.Models;
+using Agent.Runtime.Clients;
 using Agent.Runtime.Observability;
 using Agent.Runtime.Persistence;
+using Agent.Runtime.Services;
 using Agent.Runtime.Streaming;
 using Shared.Contracts.Returns;
 using Shared.Contracts.Sop;
@@ -23,11 +25,19 @@ builder.Services.AddDbContext<AgentRuntimeDbContext>(options =>
 });
 
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient<IDomainKnowledgeClient, DomainKnowledgeClient>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["Services:WmsDomainService"]
+        ?? "http://wms-domain-service");
+});
 builder.Services.AddScoped<IModelGateway, ModelGateway>();
 builder.Services.AddScoped<IToolInvocationStore, EfToolInvocationStore>();
 builder.Services.AddSingleton<ConversationCompactor>();
 builder.Services.AddScoped<ToolLoggingMiddleware>();
 builder.Services.AddSingleton<SseEventWriter>();
+builder.Services.AddScoped<ReturnDispositionAdvisor>();
+builder.Services.AddScoped<SopAssistService>();
 
 var app = builder.Build();
 
@@ -56,24 +66,30 @@ app.MapGet("/internal/runtime/model-profiles/{profileCode}", (
     return profile is null ? Results.NotFound() : Results.Ok(profile);
 });
 
-app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", (Guid returnOrderId) =>
+app.MapGet("/internal/runtime/dispositions/{returnOrderId:guid}", async (
+    Guid returnOrderId,
+    ReturnDispositionAdvisor advisor,
+    CancellationToken cancellationToken) =>
 {
-    return Results.Ok(new DispositionSuggestionDto(
-        returnOrderId,
-        "Scrap",
-        "High",
-        [],
-        "Pending"));
+    try
+    {
+        var suggestion = await advisor.GetSuggestionAsync(returnOrderId, cancellationToken);
+        return Results.Ok(suggestion);
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.NotFound();
+    }
 });
 
-app.MapPost("/internal/runtime/sop/{sessionId:guid}/steps", (Guid sessionId, AdvanceSopStepRequest request) =>
+app.MapPost("/internal/runtime/sop/{sessionId:guid}/steps", async (
+    Guid sessionId,
+    AdvanceSopStepRequest request,
+    SopAssistService service,
+    CancellationToken cancellationToken) =>
 {
-    return Results.Ok(new SopExecutionViewDto(
-        sessionId,
-        "RETURNS",
-        request.StepCode,
-        [],
-        true));
+    var result = await service.AdvanceAsync(sessionId, request, cancellationToken);
+    return Results.Ok(result);
 });
 
 app.MapGet("/internal/runtime/sop/{sessionId:guid}/events", async (

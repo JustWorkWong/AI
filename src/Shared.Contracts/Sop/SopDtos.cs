@@ -9,8 +9,27 @@ public sealed record SopExecutionViewDto(
     IReadOnlyList<CitationDto> Citations,
     bool RequiresAcknowledgement);
 
+public sealed record SopCandidateDto(
+    Guid DocumentId,
+    string DocumentCode,
+    string Version,
+    string Title);
+
+public sealed record SopChunkDto(
+    Guid ChunkId,
+    Guid DocumentId,
+    string DocumentCode,
+    string Version,
+    string StepCode,
+    string Content);
+
 public sealed record PublishSopCommand(string RawContent);
 
 public sealed record RetrieveSopQuery(string StepCode);
+
+public sealed record RetrieveSopChunksQuery(
+    string OperationCode,
+    string StepCode,
+    IReadOnlyList<Guid> CandidateDocumentIds);
 
 public sealed record AdvanceSopStepRequest(string StepCode, string UserInput);

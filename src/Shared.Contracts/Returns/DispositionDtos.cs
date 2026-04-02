@@ -9,6 +9,11 @@ public sealed record ReturnOrderDto(
     string Status,
     string Notes);
 
+public sealed record HistoricalCaseDto(
+    Guid CaseId,
+    string Condition,
+    string Outcome);
+
 public sealed record DispositionSuggestionDto(
     Guid ReturnOrderId,
     string SuggestedOutcome,

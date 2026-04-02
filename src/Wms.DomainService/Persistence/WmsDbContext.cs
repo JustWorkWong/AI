@@ -4,6 +4,7 @@ using Wms.DomainService.Auth;
 using Wms.DomainService.Commands;
 using Wms.DomainService.Integration;
 using Wms.DomainService.Returns;
+using Wms.DomainService.Sop;
 using Wms.DomainService.Storage;
 
 namespace Wms.DomainService.Persistence;
@@ -39,6 +40,10 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
 
     public DbSet<ReturnAttachment> ReturnAttachments => Set<ReturnAttachment>();
+
+    public DbSet<SopDocument> SopDocuments => Set<SopDocument>();
+
+    public DbSet<SopChunk> SopChunks => Set<SopChunk>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +91,7 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Condition).HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(512);
         });
 
         modelBuilder.Entity<DispositionDecision>(entity =>
@@ -140,6 +146,25 @@ public sealed class WmsDbContext(DbContextOptions<WmsDbContext> options) : DbCon
             entity.Property(x => x.ObjectKey).HasMaxLength(256);
             entity.Property(x => x.ContentType).HasMaxLength(128);
             entity.Property(x => x.FileName).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<SopDocument>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DocumentCode).HasMaxLength(64);
+            entity.Property(x => x.OperationCode).HasMaxLength(64);
+            entity.Property(x => x.Version).HasMaxLength(32);
+            entity.Property(x => x.Title).HasMaxLength(256);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasIndex(x => new { x.OperationCode, x.Status });
+        });
+
+        modelBuilder.Entity<SopChunk>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.StepCode).HasMaxLength(64);
+            entity.Property(x => x.Content).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.DocumentId, x.StepCode, x.Sequence });
         });
     }
 }

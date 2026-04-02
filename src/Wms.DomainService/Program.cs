@@ -56,6 +56,8 @@ app.MapPost("/internal/auth/sync", async (
 
 app.MapDispositionEndpoints();
 app.MapAttachmentEndpoints();
+app.MapReturnReadEndpoints();
+app.MapSopReadEndpoints();
 app.MapWmsDefaultEndpoints();
 
 app.Run();

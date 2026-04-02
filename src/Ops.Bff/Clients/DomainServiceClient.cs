@@ -21,8 +21,18 @@ public sealed class DomainServiceClient(HttpClient httpClient) : IDomainServiceC
         return result ?? 0;
     }
 
-    public Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken) =>
-        httpClient.GetFromJsonAsync<ReturnOrderDto>(
+    public async Task<ReturnOrderDto?> GetReturnOrderAsync(Guid returnOrderId, CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.GetAsync(
             $"/internal/returns/{returnOrderId}",
             cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ReturnOrderDto>(cancellationToken: cancellationToken);
+    }
 }
