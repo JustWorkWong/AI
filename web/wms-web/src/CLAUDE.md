@@ -7,10 +7,10 @@ src/
 ├─ router.ts      # 路由
 ├─ App.vue        # 外层壳
 ├─ styles.css     # 全局风格变量与基础样式
-├─ lib/           # AG-UI 订阅
+├─ lib/           # AG-UI 与 BFF API 适配
 └─ pages/         # Dashboard / Returns / SOP 页面
 ```
 
 ## 原则
-- 数据拉取尽量贴近页面，复杂共享逻辑再下沉。
+- 页面状态留在页面里，协议细节下沉到 lib。
 - 页面名称直接对应业务场景。

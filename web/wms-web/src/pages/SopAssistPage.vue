@@ -43,20 +43,7 @@
 import { onBeforeUnmount, onMounted, reactive } from "vue";
 import { useRoute } from "vue-router";
 import { subscribeToSopSession, type AgUiEvent } from "../lib/agui";
-
-interface CitationDto {
-  sourceId: string;
-  version: string;
-  snippet: string;
-}
-
-interface SopExecutionViewDto {
-  sessionId: string;
-  operationCode: string;
-  currentStepCode: string;
-  citations: CitationDto[];
-  requiresAcknowledgement: boolean;
-}
+import { advanceSopStep, type CitationDto } from "../lib/api";
 
 const route = useRoute();
 const model = reactive({
@@ -69,13 +56,11 @@ const model = reactive({
 let source: EventSource | null = null;
 
 async function advance() {
-  const response = await fetch(`/api/sop/sessions/${route.params.sessionId}/steps`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ stepCode: "STEP-02", userInput: "confirmed" })
-  });
-
-  const payload = (await response.json()) as SopExecutionViewDto;
+  const payload = await advanceSopStep(
+    String(route.params.sessionId),
+    "STEP-02",
+    "confirmed"
+  );
   model.operationCode = payload.operationCode;
   model.currentStepCode = payload.currentStepCode;
   model.citations = payload.citations;

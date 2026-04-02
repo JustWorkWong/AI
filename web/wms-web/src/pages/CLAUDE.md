@@ -2,7 +2,7 @@
 
 ## 文件
 - `DashboardPage.vue`: 工作台首页。
-- `ReturnWorkbenchPage.vue`: 退货质检与处置工作页。
+- `ReturnWorkbenchPage.vue`: 退货质检与处置工作页，展示建议并发起执行。
 - `SopAssistPage.vue`: SOP 辅助执行页。
 
 ## 原则

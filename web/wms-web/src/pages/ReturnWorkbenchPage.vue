@@ -24,8 +24,14 @@
         <h3>AI 建议</h3>
         <p>建议结果: {{ suggestion?.suggestedOutcome }}</p>
         <p>审批状态: {{ suggestion?.approvalStatus }}</p>
+        <p v-if="executionResult">执行状态: {{ executionResult.status }}</p>
+        <p v-if="executionResult?.approvalReferenceId">审批单: {{ executionResult.approvalReferenceId }}</p>
+        <p v-if="executionResult?.outcome">落单结果: {{ executionResult.outcome }}</p>
+        <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
         <div class="toolbar">
-          <button>提交审批</button>
+          <button :disabled="isExecuting" @click="execute">
+            {{ isExecuting ? "执行中..." : "执行处置" }}
+          </button>
           <button class="secondary">人工覆写</button>
         </div>
       </article>
@@ -45,43 +51,61 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
-
-interface CitationDto {
-  sourceType: string;
-  sourceId: string;
-  version: string;
-  snippet: string;
-}
-
-interface ReturnOrderDto {
-  returnOrderId: string;
-  returnCode: string;
-  qualityState: string;
-  status: string;
-  notes: string;
-}
-
-interface DispositionSuggestionDto {
-  returnOrderId: string;
-  suggestedOutcome: string;
-  riskLevel: string;
-  citations: CitationDto[];
-  approvalStatus: string;
-}
-
-interface ReturnWorkbenchViewDto {
-  order: ReturnOrderDto;
-  suggestion: DispositionSuggestionDto;
-}
+import {
+  executeDisposition,
+  getReturnWorkbench,
+  type DispositionExecutionResultDto,
+  type DispositionSuggestionDto,
+  type ReturnOrderDto
+} from "../lib/api";
 
 const route = useRoute();
 const order = ref<ReturnOrderDto | null>(null);
 const suggestion = ref<DispositionSuggestionDto | null>(null);
+const executionResult = ref<DispositionExecutionResultDto | null>(null);
+const isExecuting = ref(false);
+const errorMessage = ref("");
 
-onMounted(async () => {
-  const response = await fetch(`/api/returns/workbench/${route.params.id}`);
-  const payload = (await response.json()) as ReturnWorkbenchViewDto;
+async function loadWorkbench() {
+  const payload = await getReturnWorkbench(String(route.params.id));
   order.value = payload.order;
   suggestion.value = payload.suggestion;
+}
+
+async function execute() {
+  isExecuting.value = true;
+  errorMessage.value = "";
+
+  try {
+    const result = await executeDisposition(
+      String(route.params.id),
+      `web-${crypto.randomUUID()}`
+    );
+
+    executionResult.value = result;
+
+    if (suggestion.value) {
+      suggestion.value = {
+        ...suggestion.value,
+        approvalStatus: result.status === "WaitingForApproval" ? "Pending" : "Completed",
+        suggestedOutcome: result.outcome ?? suggestion.value.suggestedOutcome
+      };
+    }
+
+    if (order.value && result.status === "Completed") {
+      order.value = {
+        ...order.value,
+        status: "Disposed"
+      };
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "执行失败";
+  } finally {
+    isExecuting.value = false;
+  }
+}
+
+onMounted(async () => {
+  await loadWorkbench();
 });
 </script>
