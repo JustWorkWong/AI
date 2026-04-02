@@ -7,4 +7,12 @@ public sealed class RepositoryConventionsTests
     {
         Assert.True(File.Exists(@"D:\AI\build\publish-k8s.ps1"));
     }
+
+    [Fact]
+    public void Vite_proxy_should_target_ops_bff_development_port()
+    {
+        var viteConfig = File.ReadAllText(@"D:\AI\web\wms-web\vite.config.ts");
+
+        Assert.Contains("http://localhost:5216", viteConfig);
+    }
 }

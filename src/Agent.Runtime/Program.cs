@@ -56,6 +56,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+await RuntimeDatabaseInitializer.InitializeAsync(app.Services, app.Environment);
+
 app.MapGet("/healthz", () => Results.Ok("ok"));
 
 app.MapGet("/internal/runtime/failures/count", async (

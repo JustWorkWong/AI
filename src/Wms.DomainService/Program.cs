@@ -3,6 +3,7 @@ using Shared.Contracts.Approvals;
 using Wms.DomainService.Auth;
 using Wms.DomainService.Endpoints;
 using Wms.DomainService.Persistence;
+using Wms.DomainService.Seed;
 using Wms.DomainService.Storage;
 using Wms.ServiceDefaults;
 
@@ -30,6 +31,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+await DevelopmentBootstrapper.InitializeAsync(app.Services, app.Environment);
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
 

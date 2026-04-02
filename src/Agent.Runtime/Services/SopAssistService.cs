@@ -177,15 +177,21 @@ public sealed class SopAssistService(
             .Select(x => x.ToLowerInvariant())
             .ToArray();
 
-        return chunks
+        var ranked = chunks
             .Select(chunk => new
             {
                 Chunk = chunk,
                 Score = Score(chunk.Content, tokens)
             })
-            .Where(x => x.Score > 0 || tokens.Length == 0)
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Chunk.DocumentCode)
+            .ToArray();
+
+        var selected = ranked.Any(x => x.Score > 0)
+            ? ranked.Where(x => x.Score > 0)
+            : ranked;
+
+        return selected
             .Select(x => new CitationDto("sop", x.Chunk.DocumentCode, x.Chunk.Version, x.Chunk.Content))
             .Take(3)
             .ToArray();

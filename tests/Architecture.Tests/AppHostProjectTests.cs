@@ -13,4 +13,18 @@ public sealed class AppHostProjectTests
         Assert.Contains("Aspire.AppHost.Sdk", projectText);
         Assert.Contains("Aspire.Hosting.Kubernetes", projectText);
     }
+
+    [Fact]
+    public void AppHost_should_define_launch_profile_with_dashboard_environment()
+    {
+        var launchSettingsPath = @"D:\AI\src\Wms.AppHost\Properties\launchSettings.json";
+
+        Assert.True(File.Exists(launchSettingsPath));
+
+        var launchSettings = File.ReadAllText(launchSettingsPath);
+
+        Assert.Contains("ASPNETCORE_URLS", launchSettings);
+        Assert.Contains("ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL", launchSettings);
+        Assert.Contains("ASPIRE_ALLOW_UNSECURED_TRANSPORT", launchSettings);
+    }
 }

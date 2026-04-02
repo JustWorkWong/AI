@@ -74,6 +74,21 @@ describe("createReturnWorkbench", () => {
     expect(workbench.executionResult.value?.status).toBe("WaitingForApproval");
     expect(workbench.errorMessage.value).toBe("approval failed");
   });
+
+  it("should surface error message and avoid throwing when initial load fails", async () => {
+    const workbench = createReturnWorkbench({
+      ...createApiStub(),
+      getReturnWorkbench: async () => {
+        throw new Error("load failed");
+      }
+    });
+
+    await workbench.load(RETURN_ORDER_ID);
+
+    expect(workbench.order.value).toBeNull();
+    expect(workbench.suggestion.value).toBeNull();
+    expect(workbench.errorMessage.value).toBe("load failed");
+  });
 });
 
 function createApiStub(options?: {

@@ -45,9 +45,17 @@ export function createReturnWorkbench(api: ReturnWorkbenchApi = defaultApi) {
   );
 
   async function load(returnOrderId: string) {
-    const payload = await api.getReturnWorkbench(returnOrderId);
-    order.value = payload.order;
-    suggestion.value = payload.suggestion;
+    errorMessage.value = "";
+    order.value = null;
+    suggestion.value = null;
+
+    try {
+      const payload = await api.getReturnWorkbench(returnOrderId);
+      order.value = payload.order;
+      suggestion.value = payload.suggestion;
+    } catch (error) {
+      errorMessage.value = toUserMessage(error, "加载失败");
+    }
   }
 
   async function execute(returnOrderId: string, idempotencyKey: string) {

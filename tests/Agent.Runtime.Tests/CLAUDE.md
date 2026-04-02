@@ -13,6 +13,7 @@ Agent.Runtime.Tests/
 ├─ SopAssistWorkflowTests.cs         # 验证 SOP workflow 的证据分支
 ├─ ReturnDispositionAdvisorTests.cs  # 验证退货建议聚合真实 domain 读边界与 tool 留痕
 ├─ SopAssistServiceTests.cs          # 验证 SOP workflow、checkpoint 与证据输出
+├─ SseEventWriterTests.cs            # 验证 SSE 事件契约保持 camelCase
 └─ InMemoryToolInvocationStore.cs    # 纯内存测试替身
 ```
 

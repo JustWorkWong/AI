@@ -53,6 +53,25 @@ public sealed class SopAssistServiceTests
         Assert.Equal(3, db.ToolInvocations.Count());
     }
 
+    [Fact]
+    public async Task Advance_should_fall_back_to_top_sop_citations_when_user_input_has_no_keyword_match()
+    {
+        var sessionId = Guid.NewGuid();
+        await using var db = CreateDbContext();
+        var service = new SopAssistService(
+            new StubDomainKnowledgeClient(),
+            new ToolLoggingMiddleware(new EfToolInvocationStore(db)),
+            db);
+
+        var result = await service.AdvanceAsync(
+            sessionId,
+            new AdvanceSopStepRequest("STEP-02", "confirmed"),
+            CancellationToken.None);
+
+        Assert.NotEmpty(result.Citations);
+        Assert.True(result.RequiresAcknowledgement);
+    }
+
     private static AgentRuntimeDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AgentRuntimeDbContext>()
@@ -83,6 +102,7 @@ public sealed class SopAssistServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<SopChunkDto>>([
                 new SopChunkDto(Guid.NewGuid(), query.CandidateDocumentIds[0], "SOP-RET-101", "v3", "INSPECT", "Inspect the cracked screen before approving disposal."),
+                new SopChunkDto(Guid.NewGuid(), query.CandidateDocumentIds[0], "SOP-RET-101", "v3", "STEP-02", "确认质检结论并记录现场人员确认结果。"),
                 new SopChunkDto(Guid.NewGuid(), query.CandidateDocumentIds[0], "SOP-RET-101", "v3", "PACK", "Verify package seals.")
             ]);
     }
