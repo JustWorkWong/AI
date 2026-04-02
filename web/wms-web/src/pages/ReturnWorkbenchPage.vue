@@ -20,37 +20,20 @@
         <p>备注: {{ order?.notes }}</p>
       </article>
 
-      <article class="panel">
-        <h3>AI 建议</h3>
-        <p>建议结果: {{ suggestion?.suggestedOutcome }}</p>
-        <p>审批状态: {{ suggestion?.approvalStatus }}</p>
-        <p v-if="executionResult">执行状态: {{ executionResult.status }}</p>
-        <p v-if="executionResult?.approvalReferenceId">审批单: {{ executionResult.approvalReferenceId }}</p>
-        <p v-if="executionResult?.outcome">落单结果: {{ executionResult.outcome }}</p>
-        <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
-        <div class="toolbar">
-          <button :disabled="isExecuting" @click="execute">
-            {{ isExecuting ? "执行中..." : "执行处置" }}
-          </button>
-          <button
-            v-if="canApprove"
-            class="secondary"
-            :disabled="isApproving"
-            @click="decideApproval('Approve')"
-          >
-            {{ isApproving ? "处理中..." : "审批通过" }}
-          </button>
-          <button
-            v-if="canApprove"
-            class="secondary danger"
-            :disabled="isApproving"
-            @click="decideApproval('Reject')"
-          >
-            {{ isApproving ? "处理中..." : "驳回" }}
-          </button>
-          <button class="secondary">人工覆写</button>
-        </div>
-      </article>
+      <ReturnDispositionCard
+        :suggested-outcome="suggestion?.suggestedOutcome"
+        :approval-status="suggestion?.approvalStatus"
+        :execution-status="executionResult?.status"
+        :approval-reference-id="executionResult?.approvalReferenceId"
+        :outcome="executionResult?.outcome"
+        :error-message="errorMessage"
+        :is-executing="isExecuting"
+        :is-approving="isApproving"
+        :can-approve="canApprove"
+        @execute="execute"
+        @approve="decideApproval('Approve')"
+        @reject="decideApproval('Reject')"
+      />
     </section>
 
     <article class="panel">
@@ -87,6 +70,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useRoute } from "vue-router";
+import ReturnDispositionCard from "../components/return-workbench/ReturnDispositionCard.vue";
 import { createReturnWorkbench } from "../composables/useReturnWorkbench";
 
 const route = useRoute();
